@@ -116,6 +116,7 @@ public class DistroProtocol {
         for (Member each : memberManager.allMembersWithoutSelf()) {
             DistroKey distroKeyWithTarget = new DistroKey(distroKey.getResourceKey(), distroKey.getResourceType(),
                     each.getAddress());
+            //延迟任务
             DistroDelayTask distroDelayTask = new DistroDelayTask(distroKeyWithTarget, action, delay);
             distroTaskEngineHolder.getDelayTaskExecuteEngine().addTask(distroKeyWithTarget, distroDelayTask);
             if (Loggers.DISTRO.isDebugEnabled()) {

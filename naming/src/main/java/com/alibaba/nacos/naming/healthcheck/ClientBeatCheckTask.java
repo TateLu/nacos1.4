@@ -72,10 +72,13 @@ public class ClientBeatCheckTask implements Runnable {
     public String taskKey() {
         return KeyBuilder.buildServiceMetaKey(service.getNamespaceId(), service.getName());
     }
-    
+
+
+    //注册中心 服务端 心跳超时检测线程
     @Override
     public void run() {
         try {
+            //distro 如果当前节点不负责这个service，不处理
             if (!getDistroMapper().responsible(service.getName())) {
                 return;
             }
@@ -83,10 +86,10 @@ public class ClientBeatCheckTask implements Runnable {
             if (!getSwitchDomain().isHealthCheckEnabled()) {
                 return;
             }
-            
+            // 所有临时实例
             List<Instance> instances = service.allIPs(true);
-            
-            // first set health status of instances:
+
+            // 超过15s没收到心跳，标记为非健康
             for (Instance instance : instances) {
                 if (System.currentTimeMillis() - instance.getLastBeat() > instance.getInstanceHeartBeatTimeOut()) {
                     if (!instance.isMarked()) {
@@ -107,8 +110,8 @@ public class ClientBeatCheckTask implements Runnable {
             if (!getGlobalConfig().isExpireInstance()) {
                 return;
             }
-            
-            // then remove obsolete instances:
+
+            // 超过30s没收到心跳，直接从注册表中删除
             for (Instance instance : instances) {
                 
                 if (instance.isMarked()) {

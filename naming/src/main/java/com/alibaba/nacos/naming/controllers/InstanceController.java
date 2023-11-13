@@ -45,6 +45,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.BooleanUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.codehaus.jackson.util.VersionUtil;
@@ -129,7 +130,7 @@ public class InstanceController {
      * @return 'ok' if success
      * @throws Exception any error during register
      */
-    //书签：注册中心 服务端 接受注册实例请求
+    //注册中心 服务端 接受注册实例请求
     @CanDistro
     @PostMapping
     @Secured(parser = NamingResourceParser.class, action = ActionTypes.WRITE)
@@ -461,7 +462,11 @@ public class InstanceController {
      * @param request http request
      * @return detail information of instance
      * @throws Exception any error during handle
+     *
+     * 客户端心跳PUT /nacos/v1/ns/instance/beat。
+     * 由于客户端心跳是个写操作（更新内存中的实例上次心跳时间），所以被@CanDistro注解，由集群中责任节点处理。
      */
+    //注册中心 服务端 接收客户端心跳请求
     @CanDistro
     @PutMapping("/beat")
     @Secured(parser = NamingResourceParser.class, action = ActionTypes.WRITE)
@@ -494,8 +499,9 @@ public class InstanceController {
         NamingUtils.checkServiceNameFormat(serviceName);
         Loggers.SRV_LOG.debug("[CLIENT-BEAT] full arguments: beat: {}, serviceName: {}", clientBeat, serviceName);
         Instance instance = serviceManager.getInstance(namespaceId, serviceName, clusterName, ip, port);
-        
+        //如果实例没注册，注册该实例
         if (instance == null) {
+            //如果lightBeatEnabled=true且发送心跳时客户端没有注册，需要客户端发起注册
             if (clientBeat == null) {
                 result.put(CommonParams.CODE, NamingResponseCode.RESOURCE_NOT_FOUND);
                 return result;
@@ -529,6 +535,7 @@ public class InstanceController {
             clientBeat.setPort(port);
             clientBeat.setCluster(clusterName);
         }
+        //更新instance健康状态
         service.processClientBeat(clientBeat);
         
         result.put(CommonParams.CODE, NamingResponseCode.OK);

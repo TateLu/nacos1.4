@@ -107,7 +107,13 @@ public class DistroConsistencyServiceImpl implements EphemeralConsistencyService
     
     @Override
     public void put(String key, Record value) throws NacosException {
+        //注册中心 服务端 1 本地缓存更新 & 2通知服务实例更新
         onPut(key, value);
+        /**
+         * 注册中心 服务端 3 集群信息同步
+         * 主要是通过key重新查询底层存储获取最新数据后，调用每个节点的/v1/ns/distro/datum**接口。
+         *每个节点接收数据同步请求，最终是调用{@link DistroConsistencyServiceImpl#processData(DistroData)}方法
+         * */
         distroProtocol.sync(new DistroKey(key, KeyBuilder.INSTANCE_LIST_KEY_PREFIX), DataOperation.CHANGE,
                 globalConfig.getTaskDispatchPeriod() / 2);
     }
@@ -130,7 +136,7 @@ public class DistroConsistencyServiceImpl implements EphemeralConsistencyService
      * @param value record
      */
     public void onPut(String key, Record value) {
-        
+        //本地缓存更新
         if (KeyBuilder.matchEphemeralInstanceListKey(key)) {
             Datum<Instances> datum = new Datum<>();
             datum.value = (Instances) value;
@@ -142,7 +148,10 @@ public class DistroConsistencyServiceImpl implements EphemeralConsistencyService
         if (!listeners.containsKey(key)) {
             return;
         }
-        
+
+        /**
+         * 通知服务实例更新 {@link Service#onChange(String, Instances)}
+         * */
         notifier.addTask(key, DataOperation.CHANGE);
     }
     
@@ -375,7 +384,8 @@ public class DistroConsistencyServiceImpl implements EphemeralConsistencyService
     public boolean isInitialized() {
         return distroProtocol.isInitialized() || !globalConfig.isDataWarmup();
     }
-    
+
+    //注册中心 服务端 Notifier线程，阻塞队列执行任务
     public class Notifier implements Runnable {
         
         private ConcurrentHashMap<String, String> services = new ConcurrentHashMap<>(10 * 1024);
