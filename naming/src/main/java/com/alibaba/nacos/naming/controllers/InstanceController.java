@@ -129,7 +129,7 @@ public class InstanceController {
      * @return 'ok' if success
      * @throws Exception any error during register
      */
-    //注册中心 服务端 接受注册实例请求
+    //书签：注册中心 服务端 接受注册实例请求
     @CanDistro
     @PostMapping
     @Secured(parser = NamingResourceParser.class, action = ActionTypes.WRITE)
