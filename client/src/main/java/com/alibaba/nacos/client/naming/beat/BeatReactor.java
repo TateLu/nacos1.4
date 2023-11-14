@@ -164,7 +164,7 @@ public class BeatReactor implements Closeable {
             }
             long nextTime = beatInfo.getPeriod();
             try {
-                // 发送心跳请求给服务端
+                /**发送心跳请求给服务端，获取返回结果*/
                 JsonNode result = serverProxy.sendBeat(beatInfo, BeatReactor.this.lightBeatEnabled);
                 // 1. 服务端可以决定客户端的心跳间隔
                 long interval = result.get("clientBeatInterval").asLong();

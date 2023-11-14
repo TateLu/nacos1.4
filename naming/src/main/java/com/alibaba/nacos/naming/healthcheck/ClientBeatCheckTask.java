@@ -35,6 +35,7 @@ import com.alibaba.nacos.naming.misc.SwitchDomain;
 import com.alibaba.nacos.naming.misc.UtilsAndCommons;
 import com.alibaba.nacos.naming.push.PushService;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import org.apache.commons.lang3.StringUtils;
 
 import java.util.List;
 
@@ -82,7 +83,6 @@ public class ClientBeatCheckTask implements Runnable {
             if (!getDistroMapper().responsible(service.getName())) {
                 return;
             }
-            
             if (!getSwitchDomain().isHealthCheckEnabled()) {
                 return;
             }

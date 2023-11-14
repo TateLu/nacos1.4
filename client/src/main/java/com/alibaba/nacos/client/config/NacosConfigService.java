@@ -132,7 +132,13 @@ public class NacosConfigService implements ConfigService {
     public void removeListener(String dataId, String group, Listener listener) {
         worker.removeTenantListener(dataId, group, listener);
     }
-    
+
+    /**
+     * 配置中心 客户端 获取配置信息
+     *
+     * ConfigService获取配置，是不会走内存缓存的，要么是读取文件系统中的文件，要么是查询nacos-server的实时配置。
+     *
+     * */
     private String getConfigInner(String tenant, String dataId, String group, long timeoutMs) throws NacosException {
         group = blank2defaultGroup(group);
         ParamUtils.checkKeyParam(dataId, group);
@@ -142,7 +148,7 @@ public class NacosConfigService implements ConfigService {
         cr.setTenant(tenant);
         cr.setGroup(group);
         
-        // 优先使用本地配置
+        // LEVEL1 : 使用本地文件系统的failover配置
         String content = LocalConfigInfoProcessor.getFailover(agent.getName(), dataId, group, tenant);
         if (content != null) {
             LOGGER.warn("[{}] [get-config] get failover ok, dataId={}, group={}, tenant={}, config={}", agent.getName(),
@@ -155,7 +161,7 @@ public class NacosConfigService implements ConfigService {
             content = cr.getContent();
             return content;
         }
-        
+        //LEVEL2 : 读取config-server实时配置，并将snapshot保存到本地文件系统
         try {
             ConfigResponse response = worker.getServerConfig(dataId, group, tenant, timeoutMs);
             cr.setContent(response.getContent());
@@ -172,7 +178,8 @@ public class NacosConfigService implements ConfigService {
             LOGGER.warn("[{}] [get-config] get from server error, dataId={}, group={}, tenant={}, msg={}",
                     agent.getName(), dataId, group, tenant, ioe.toString());
         }
-        
+        //如果ClientWorker.getServerConfig执行失败，且非403错误，会读取snapshot文件兜底。
+        // LEVEL3 : 如果读取config-server发生非403Forbidden错误，使用本地snapshot
         content = LocalConfigInfoProcessor.getSnapshot(agent.getName(), dataId, group, tenant);
         LOGGER.warn("[{}] [get-config] get snapshot ok, dataId={}, group={}, tenant={}, config={}", agent.getName(),
                 dataId, group, tenant, ContentUtils.truncateContent(content));
