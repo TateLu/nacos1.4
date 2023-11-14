@@ -304,6 +304,7 @@ public class ClientWorker implements Closeable {
     /**
      * Check config info.
      */
+    //配置中心 客户端 提交长轮询任务
     public void checkConfigInfo() {
         // Dispatch tasks.
         int listenerSize = cacheMap.size();
@@ -438,7 +439,8 @@ public class ClientWorker implements Closeable {
         }
         return updateList;
     }
-    
+
+    //配置中心 客户端 ClientWorker启动（启动后台线程池，获取服务端信息）
     @SuppressWarnings("PMD.ThreadPoolCreationRule")
     public ClientWorker(final HttpAgent agent, final ConfigFilterChainManager configFilterChainManager,
             final Properties properties) {
@@ -448,7 +450,7 @@ public class ClientWorker implements Closeable {
         // Initialize the timeout parameter
         
         init(properties);
-        
+        //配置中心 客户端 ClientWorker 线程池使用
         this.executor = Executors.newScheduledThreadPool(1, new ThreadFactory() {
             @Override
             public Thread newThread(Runnable r) {
@@ -502,7 +504,16 @@ public class ClientWorker implements Closeable {
         ThreadUtils.shutdownThreadPool(executor, LOGGER);
         LOGGER.info("{} do shutdown stop", className);
     }
-    
+    /**
+     * 处理failover配置：判断当前CacheData是否使用failover配置（ClientWorker.checkLocalConfig），如果使用failover配置，则校验本地配置文件内容是否发生变化，发生变化则触发监听器（CacheData.checkListenerMd5）。这一步其实和长轮询无关。
+     * 对于所有非failover配置，执行长轮询，返回发生改变的groupKey（ClientWorker.checkUpdateDataIds）。
+     * 根据返回的groupKey，查询服务端实时配置并保存snapshot（ClientWorker.getServerConfig）
+     * 更新内存CacheData的配置content。
+     * 校验配置是否发生变更，通知监听器（CacheData.checkListenerMd5）。
+     * 如果正常执行本次长轮询，立即提交长轮询任务，执行下一次长轮询；发生异常，延迟2s提交长轮询任务。
+     *
+     * */
+    //配置中心 客户端 长轮询线程
     class LongPollingRunnable implements Runnable {
         
         private final int taskId;
@@ -573,11 +584,11 @@ public class ClientWorker implements Closeable {
                     }
                 }
                 inInitializingCacheList.clear();
-                
+                //重新提交回线程池
                 executorService.execute(this);
                 
             } catch (Throwable e) {
-                
+                //报错，则延迟一定时间再提交
                 // If the rotation training task is abnormal, the next execution time of the task will be punished
                 LOGGER.error("longPolling error : ", e);
                 executorService.schedule(this, taskPenaltyTime, TimeUnit.MILLISECONDS);
