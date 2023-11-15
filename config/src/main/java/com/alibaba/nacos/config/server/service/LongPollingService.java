@@ -274,7 +274,7 @@ public class LongPollingService {
         
         // AsyncContext.setTimeout() is incorrect, Control by oneself
         asyncContext.setTimeout(0L);
-        
+        //配置中心 服务端 提交客户端的长轮询请求
         ConfigExecutor.executeLongPolling(
                 new ClientLongPolling(asyncContext, clientMd5Map, ip, probeRequestSize, timeout, appName, tag));
     }
