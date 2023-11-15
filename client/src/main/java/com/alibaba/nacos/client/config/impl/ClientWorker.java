@@ -247,13 +247,14 @@ public class ClientWorker implements Closeable {
             }
         }
     }
-    
+    //failover:a procedure by which a system automatically transfers control to a duplicate system when it detects a fault or failure.
+    //配置中心 客户端 failover配置文件
     private void checkLocalConfig(CacheData cacheData) {
         final String dataId = cacheData.dataId;
         final String group = cacheData.group;
         final String tenant = cacheData.tenant;
         File path = LocalConfigInfoProcessor.getFailoverFile(agent.getName(), dataId, group, tenant);
-        
+        //当isUseLocalConfigInfo=false 且 failover配置文件存在时，使用failover配置文件，并更新内存中的配置
         if (!cacheData.isUseLocalConfigInfo() && path.exists()) {
             String content = LocalConfigInfoProcessor.getFailover(agent.getName(), dataId, group, tenant);
             final String md5 = MD5Utils.md5Hex(content, Constants.ENCODE);
@@ -576,6 +577,7 @@ public class ClientWorker implements Closeable {
                         LOGGER.error(message, ioe);
                     }
                 }
+                //配置中心 客户端 MD5校验配置是否发生变更，并触发监听器。
                 for (CacheData cacheData : cacheDatas) {
                     if (!cacheData.isInitializing() || inInitializingCacheList
                             .contains(GroupKey.getKeyTenant(cacheData.dataId, cacheData.group, cacheData.tenant))) {
