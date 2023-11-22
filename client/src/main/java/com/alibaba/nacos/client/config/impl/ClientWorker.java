@@ -248,7 +248,7 @@ public class ClientWorker implements Closeable {
         }
     }
     //failover:a procedure by which a system automatically transfers control to a duplicate system when it detects a fault or failure.
-    //配置中心 客户端 failover配置文件
+    //书签 配置中心 客户端 failover配置文件
     private void checkLocalConfig(CacheData cacheData) {
         final String dataId = cacheData.dataId;
         final String group = cacheData.group;
@@ -305,7 +305,7 @@ public class ClientWorker implements Closeable {
     /**
      * Check config info.
      */
-    //配置中心 客户端 提交长轮询任务
+    //书签 配置中心 客户端 提交长轮询任务
     public void checkConfigInfo() {
         // Dispatch tasks.
         int listenerSize = cacheMap.size();
@@ -441,7 +441,7 @@ public class ClientWorker implements Closeable {
         return updateList;
     }
 
-    //配置中心 客户端 ClientWorker启动（启动后台线程池，获取服务端信息）
+    //书签 配置中心 客户端 ClientWorker启动（启动后台线程池，获取服务端信息）
     @SuppressWarnings("PMD.ThreadPoolCreationRule")
     public ClientWorker(final HttpAgent agent, final ConfigFilterChainManager configFilterChainManager,
             final Properties properties) {
@@ -451,7 +451,7 @@ public class ClientWorker implements Closeable {
         // Initialize the timeout parameter
         
         init(properties);
-        //配置中心 客户端 ClientWorker 线程池使用
+        //书签 配置中心 客户端 ClientWorker 线程池使用
         this.executor = Executors.newScheduledThreadPool(1, new ThreadFactory() {
             @Override
             public Thread newThread(Runnable r) {
@@ -514,7 +514,7 @@ public class ClientWorker implements Closeable {
      * 如果正常执行本次长轮询，立即提交长轮询任务，执行下一次长轮询；发生异常，延迟2s提交长轮询任务。
      *
      * */
-    //配置中心 客户端 长轮询线程
+    //书签 配置中心 客户端 长轮询线程
     class LongPollingRunnable implements Runnable {
         
         private final int taskId;
@@ -577,7 +577,7 @@ public class ClientWorker implements Closeable {
                         LOGGER.error(message, ioe);
                     }
                 }
-                //配置中心 客户端 MD5校验配置是否发生变更，并触发监听器。
+                //书签 配置中心 客户端 MD5校验配置是否发生变更，并触发监听器。
                 for (CacheData cacheData : cacheDatas) {
                     if (!cacheData.isInitializing() || inInitializingCacheList
                             .contains(GroupKey.getKeyTenant(cacheData.dataId, cacheData.group, cacheData.tenant))) {

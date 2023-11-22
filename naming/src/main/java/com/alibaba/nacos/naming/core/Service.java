@@ -176,7 +176,7 @@ public class Service extends com.alibaba.nacos.api.naming.pojo.Service implement
     /**
      * Service 实现RecordListener接口，当底层存储的Instance发生变更了，这里都会收到回调。更新内存中ClusterMap，并将变更后的自己的信息通过UDP推送给监听当前服务的所有客户端。
      * */
-    //注册中心 服务端 Service遍历所有实例，推送变更消息。实现RecordListener接口
+    //书签 注册中心 服务端 Service遍历所有实例，推送变更消息。实现RecordListener接口
     @Override
     public void onChange(String key, Instances value) throws Exception {
         
@@ -282,7 +282,7 @@ public class Service extends com.alibaba.nacos.api.naming.pojo.Service implement
         }
         
         setLastModifiedMillis(System.currentTimeMillis());
-        //注册中心 服务端 udp推送消息给客户端 1 服务变更消息，spring event推送
+        //书签 注册中心 服务端 udp推送消息给客户端 1 服务变更消息，spring event推送
         getPushService().serviceChanged(this);
         StringBuilder stringBuilder = new StringBuilder();
         

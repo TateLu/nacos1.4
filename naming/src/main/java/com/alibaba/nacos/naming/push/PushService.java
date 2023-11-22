@@ -116,7 +116,7 @@ public class PushService implements ApplicationContextAware, ApplicationListener
         this.applicationContext = applicationContext;
     }
 
-    //注册中心 服务端 udp推送消息给客户端 2 推送消息的实现
+    //书签 注册中心 服务端 udp推送消息给客户端 2 推送消息的实现
     @Override
     public void onApplicationEvent(ServiceChangeEvent event) {
         Service service = event.getService();

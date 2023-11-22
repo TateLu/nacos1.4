@@ -130,7 +130,7 @@ public class InstanceController {
      * @return 'ok' if success
      * @throws Exception any error during register
      */
-    //注册中心 服务端 接受注册实例请求
+    //书签 注册中心 服务端 接受注册实例请求
     @CanDistro
     @PostMapping
     @Secured(parser = NamingResourceParser.class, action = ActionTypes.WRITE)
@@ -466,7 +466,7 @@ public class InstanceController {
      * 客户端心跳PUT /nacos/v1/ns/instance/beat。
      * 由于客户端心跳是个写操作（更新内存中的实例上次心跳时间），所以被@CanDistro注解，由集群中责任节点处理。
      */
-    //注册中心 服务端 接收客户端心跳请求
+    //书签 注册中心 服务端 接收客户端心跳请求
     @CanDistro
     @PutMapping("/beat")
     @Secured(parser = NamingResourceParser.class, action = ActionTypes.WRITE)

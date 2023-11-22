@@ -464,7 +464,7 @@ public class ServiceManager implements RecordListener<Service> {
      * @param cluster     cluster
      * @throws NacosException nacos exception
      */
-    //注册中心 服务端 service初始化
+    //书签 注册中心 服务端 service初始化
     public void createServiceIfAbsent(String namespaceId, String serviceName, boolean local, Cluster cluster)
             throws NacosException {
         Service service = getService(namespaceId, serviceName);
@@ -645,7 +645,7 @@ public class ServiceManager implements RecordListener<Service> {
      * @param ips         instances
      * @throws NacosException nacos exception
      */
-    //注册中心 服务端 添加instance
+    //书签 注册中心 服务端 添加instance
     public void addInstance(String namespaceId, String serviceName, boolean ephemeral, Instance... ips)
             throws NacosException {
         
@@ -874,8 +874,9 @@ public class ServiceManager implements RecordListener<Service> {
      *
      * @param service service
      */
-    //注册中心 服务端 添加service，加锁
+    //书签 注册中心 服务端 添加service，加锁
     public void putService(Service service) {
+        //添加namespace
         if (!serviceMap.containsKey(service.getNamespaceId())) {
             //全局锁，初始化namespace
             synchronized (putServiceLock) {
@@ -884,6 +885,7 @@ public class ServiceManager implements RecordListener<Service> {
                 }
             }
         }
+        //添加service ，concurrenthashmap的putIfAbsent是线程安全的
         serviceMap.get(service.getNamespaceId()).putIfAbsent(service.getName(), service);
     }
     
