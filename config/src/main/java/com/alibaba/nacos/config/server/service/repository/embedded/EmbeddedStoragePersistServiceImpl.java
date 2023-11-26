@@ -361,7 +361,7 @@ public class EmbeddedStoragePersistServiceImpl implements PersistService {
     }
     
     @Override
-    public void insertOrUpdateBeta(final ConfigInfo configInfo, final String betaIps, final String srcIp,
+    public void  insertOrUpdateBeta(final ConfigInfo configInfo, final String betaIps, final String srcIp,
             final String srcUser, final Timestamp time, final boolean notify) {
         if (findConfigInfo4Beta(configInfo.getDataId(), configInfo.getGroup(), configInfo.getTenant()) == null) {
             addConfigInfo4Beta(configInfo, betaIps, srcIp, null, time, notify);

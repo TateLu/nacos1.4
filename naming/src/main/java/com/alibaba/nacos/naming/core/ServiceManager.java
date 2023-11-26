@@ -660,7 +660,7 @@ public class ServiceManager implements RecordListener<Service> {
             Instances instances = new Instances();
             instances.setInstanceList(instanceList);
             /**
-             * 书签 注册中心 服务端 区分distro raft协议实现
+             * 书签 注册中心 服务端 distro/raft协议实现
              * 通过代理服务 {@link com.alibaba.nacos.naming.consistency.DelegateConsistencyServiceImpl#put(String, Record)}}
              *区分是distro（临时实例） 还是 raft（持久实例）
              *  */

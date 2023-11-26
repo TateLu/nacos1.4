@@ -108,7 +108,7 @@ public class DistroConsistencyServiceImpl implements EphemeralConsistencyService
     
     @Override
     public void put(String key, Record value) throws NacosException {
-        //书签 注册中心 服务端 添加服务实例 1 本地缓存更新 & 2通知服务实例更新
+        //书签 注册中心 服务端 distro添加服务实例 1 本地缓存更新 & 2通知服务实例更新
         onPut(key, value);
         /**
          * 书签 注册中心 服务端 distro协议

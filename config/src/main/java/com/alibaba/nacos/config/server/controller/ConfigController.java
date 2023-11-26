@@ -120,6 +120,8 @@ public class ConfigController {
      * Adds or updates non-aggregated data.
      *
      * @throws NacosException NacosException.
+     *
+     * 书签 配置中心 服务端 配置更新请求
      */
     @PostMapping
     @Secured(action = ActionTypes.WRITE, parser = ConfigResourceParser.class)
@@ -305,6 +307,8 @@ public class ConfigController {
     
     /**
      * The client listens for configuration changes.
+     *
+     * 书签 配置中心 服务端 长轮询请求入口，监听配置更新
      */
     @PostMapping("/listener")
     @Secured(action = ActionTypes.READ, parser = ConfigResourceParser.class)
