@@ -121,7 +121,7 @@ public class ConfigController {
      *
      * @throws NacosException NacosException.
      *
-     * 书签 配置中心 服务端 配置更新请求
+     * 书签 配置中心 服务端 发布配置更新
      */
     @PostMapping
     @Secured(action = ActionTypes.WRITE, parser = ConfigResourceParser.class)
@@ -168,6 +168,11 @@ public class ConfigController {
         String betaIps = request.getHeader("betaIps");
         ConfigInfo configInfo = new ConfigInfo(dataId, group, tenant, appName, content);
         configInfo.setType(type);
+
+        /**
+         * 1 更新到数据库 （apache derby数据库（默认） 或 mysql）
+         * 2 通知集群的其他节点更新
+         * */
         if (StringUtils.isBlank(betaIps)) {
             if (StringUtils.isBlank(tag)) {
                 persistService.insertOrUpdate(srcIp, srcUser, configInfo, time, configAdvanceInfo, true);

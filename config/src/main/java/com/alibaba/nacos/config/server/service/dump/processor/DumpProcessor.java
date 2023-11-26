@@ -42,9 +42,11 @@ public class DumpProcessor implements NacosTaskProcessor {
     public DumpProcessor(DumpService dumpService) {
         this.dumpService = dumpService;
     }
-    
+
+    //书签 配置中心 服务端 集群节点，配置写入数据库或文件系统
     @Override
     public boolean process(NacosTask task) {
+        //配置写入数据库或文件系统
         final PersistService persistService = dumpService.getPersistService();
         DumpTask dumpTask = (DumpTask) task;
         String[] pair = GroupKey2.parseKey(dumpTask.getGroupKey());

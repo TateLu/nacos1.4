@@ -77,6 +77,7 @@ public class AsyncNotifyService {
                     String group = evt.group;
                     String tenant = evt.tenant;
                     String tag = evt.tag;
+                    // 获取nacos集群中所有节点
                     Collection<Member> ipList = memberManager.allMembers();
                     
                     // In fact, any type of queue here can be
@@ -140,6 +141,8 @@ public class AsyncNotifyService {
                             header.addParam("isBeta", "true");
                         }
                         AuthHeaderUtil.addIdentityToHeader(header);
+
+                        // 请求/v1/cs/communication/dataChange?dataId=cfg0&group=DEFAULT_GROUP
                         restTemplate.get(task.url, header, Query.EMPTY, String.class, new AsyncNotifyCallBack(task));
                     }
                 }
