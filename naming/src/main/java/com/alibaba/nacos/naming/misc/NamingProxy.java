@@ -157,6 +157,7 @@ public class NamingProxy {
      * @param curServer target server address
      * @return true if sync successfully, otherwise false
      */
+    //书签 注册中心 服务端 distro协议 同步数据 提交http请求到DistroController
     public static boolean syncData(byte[] data, String curServer) {
         Map<String, String> headers = new HashMap<>(128);
         
@@ -167,6 +168,7 @@ public class NamingProxy {
         headers.put(HttpHeaderConsts.CONTENT_ENCODING, "gzip");
         
         try {
+            // /distro/datum
             RestResult<String> result = HttpClient.httpPutLarge(
                     "http://" + curServer + EnvUtil.getContextPath() + UtilsAndCommons.NACOS_NAMING_CONTEXT
                             + DATA_ON_SYNC_URL, headers, data);

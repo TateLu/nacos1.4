@@ -33,6 +33,7 @@ import com.alibaba.nacos.naming.consistency.RecordListener;
 import com.alibaba.nacos.naming.consistency.ValueChangeEvent;
 import com.alibaba.nacos.naming.consistency.persistent.ClusterVersionJudgement;
 import com.alibaba.nacos.naming.consistency.persistent.PersistentNotifier;
+import com.alibaba.nacos.naming.controllers.RaftController;
 import com.alibaba.nacos.naming.core.Instances;
 import com.alibaba.nacos.naming.core.Service;
 import com.alibaba.nacos.naming.misc.GlobalConfig;
@@ -56,6 +57,8 @@ import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
@@ -202,11 +205,14 @@ public class RaftCore implements Closeable {
      * @param value value
      * @throws Exception any exception during publish
      */
+    //书签 注册中心 服务端 raft协议实现
     public void signalPublish(String key, Record value) throws Exception {
         if (stopWork) {
             throw new IllegalStateException("old raft protocol already stop work");
         }
+
         if (!isLeader()) {
+            //不是leader
             ObjectNode params = JacksonUtils.createEmptyJsonNode();
             params.put("key", key);
             params.replace("value", JacksonUtils.transferToJsonNode(value));
@@ -214,7 +220,10 @@ public class RaftCore implements Closeable {
             parameters.put("key", key);
             
             final RaftPeer leader = getLeader();
-            
+            //转发请求到leader。调用leader的新增实例 /raft/datum 接口
+            /**
+             * @see RaftController#publish(HttpServletRequest, HttpServletResponse)
+             * */
             raftProxy.proxyPostLarge(leader.ip, API_PUB, params.toString(), parameters);
             return;
         }
@@ -238,13 +247,17 @@ public class RaftCore implements Closeable {
             onPublish(datum, peers.local());
             
             final String content = json.toString();
-            
+            //集群写入成功的数目， 为半数加1
             final CountDownLatch latch = new CountDownLatch(peers.majorityCount());
             for (final String server : peers.allServersIncludeMyself()) {
                 if (isLeader(server)) {
                     latch.countDown();
                     continue;
                 }
+                // /raft/datum/commit 接口
+                /**
+                 * {@link RaftController#onPublish(HttpServletRequest, HttpServletResponse)}
+                 * */
                 final String url = buildUrl(server, API_ON_PUB);
                 HttpClient.asyncHttpPostLarge(url, Arrays.asList("key", key), content, new Callback<String>() {
                     @Override
@@ -270,7 +283,7 @@ public class RaftCore implements Closeable {
                 });
                 
             }
-            
+            //集群写入超时时间为5s
             if (!latch.await(UtilsAndCommons.RAFT_PUBLISH_TIMEOUT, TimeUnit.MILLISECONDS)) {
                 // only majority servers return success can we consider this update success
                 Loggers.RAFT.error("data publish failed, caused failed to notify majority, key={}", key);

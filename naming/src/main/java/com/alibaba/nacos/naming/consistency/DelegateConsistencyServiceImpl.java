@@ -47,6 +47,7 @@ public class DelegateConsistencyServiceImpl implements ConsistencyService {
     
     @Override
     public void put(String key, Record value) throws NacosException {
+        //区分是distro（临时实例） 还是 raft（持久实例）,
         mapConsistencyService(key).put(key, value);
     }
     

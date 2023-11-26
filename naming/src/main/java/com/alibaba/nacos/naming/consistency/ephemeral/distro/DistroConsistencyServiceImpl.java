@@ -31,6 +31,7 @@ import com.alibaba.nacos.core.distributed.distro.DistroProtocol;
 import com.alibaba.nacos.core.distributed.distro.component.DistroDataProcessor;
 import com.alibaba.nacos.core.distributed.distro.entity.DistroData;
 import com.alibaba.nacos.core.distributed.distro.entity.DistroKey;
+import com.alibaba.nacos.naming.consistency.ephemeral.distro.component.DistroHttpAgent;
 import com.alibaba.nacos.naming.core.DistroMapper;
 import com.alibaba.nacos.naming.core.Instances;
 import com.alibaba.nacos.naming.core.Service;
@@ -107,12 +108,14 @@ public class DistroConsistencyServiceImpl implements EphemeralConsistencyService
     
     @Override
     public void put(String key, Record value) throws NacosException {
-        //书签 注册中心 服务端 1 本地缓存更新 & 2通知服务实例更新
+        //书签 注册中心 服务端 添加服务实例 1 本地缓存更新 & 2通知服务实例更新
         onPut(key, value);
         /**
-         * 书签 注册中心 服务端 3 集群信息同步
+         * 书签 注册中心 服务端 distro协议
+         *
          * 主要是通过key重新查询底层存储获取最新数据后，调用每个节点的/v1/ns/distro/datum**接口。
-         *每个节点接收数据同步请求，最终是调用{@link DistroConsistencyServiceImpl#processData(DistroData)}方法
+         *每个节点接收数据同步请求，最终是调用
+         * {@link DistroHttpAgent#syncData(DistroData, String)}方法
          * */
         distroProtocol.sync(new DistroKey(key, KeyBuilder.INSTANCE_LIST_KEY_PREFIX), DataOperation.CHANGE,
                 globalConfig.getTaskDispatchPeriod() / 2);
@@ -150,7 +153,7 @@ public class DistroConsistencyServiceImpl implements EphemeralConsistencyService
         }
 
         /**
-         * 通知服务实例更新 {@link Service#onChange(String, Instances)}
+         *注册中心 服务端 通知实例更新 {@link Service#onChange(String, Instances)}
          * */
         notifier.addTask(key, DataOperation.CHANGE);
     }
