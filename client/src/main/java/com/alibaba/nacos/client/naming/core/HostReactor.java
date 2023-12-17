@@ -310,18 +310,21 @@ public class HostReactor implements Closeable {
         }
         return null;
     }
-    
+
+    //书签 注册中心 客户端 获取服务实例信息 2
     public ServiceInfo getServiceInfo(final String serviceName, final String clusters) {
         
         NAMING_LOGGER.debug("failover-mode: " + failoverReactor.isFailoverSwitch());
         String key = ServiceInfo.getKey(serviceName, clusters);
+        // 1. 优先判断当前是否处于failover状态---由本地配置文件决定
         if (failoverReactor.isFailoverSwitch()) {
             return failoverReactor.getService(key);
         }
-        
+        // 2. 内存serviceInfoMap中查询ServiceInfo
         ServiceInfo serviceObj = getServiceInfo0(serviceName, clusters);
         
         if (null == serviceObj) {
+            // 2-1. 内存中不存在，向服务端发起查询
             serviceObj = new ServiceInfo(serviceName, clusters);
             
             serviceInfoMap.put(serviceObj.getKey(), serviceObj);
@@ -331,7 +334,7 @@ public class HostReactor implements Closeable {
             updatingMap.remove(serviceName);
             
         } else if (updatingMap.containsKey(serviceName)) {
-            
+            // 2-2. 内存中存在，如果正在更新注册表里的这个service，等待更新
             if (UPDATE_HOLD_INTERVAL > 0) {
                 // hold a moment waiting for update finish
                 synchronized (serviceObj) {
@@ -344,9 +347,9 @@ public class HostReactor implements Closeable {
                 }
             }
         }
-        
+        // 3. 提交一个任务，定时更新serviceInfo
         scheduleUpdateIfAbsent(serviceName, clusters);
-        
+        // 4. 返回内存map中的serviceInfo
         return serviceInfoMap.get(serviceObj.getKey());
     }
     

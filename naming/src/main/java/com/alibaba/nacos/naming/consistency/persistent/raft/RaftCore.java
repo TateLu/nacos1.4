@@ -247,7 +247,7 @@ public class RaftCore implements Closeable {
             onPublish(datum, peers.local());
             
             final String content = json.toString();
-            //集群写入成功的数目， 为半数加1
+            //集群写入成功的最少数目， 为半数加1
             final CountDownLatch latch = new CountDownLatch(peers.majorityCount());
             for (final String server : peers.allServersIncludeMyself()) {
                 if (isLeader(server)) {

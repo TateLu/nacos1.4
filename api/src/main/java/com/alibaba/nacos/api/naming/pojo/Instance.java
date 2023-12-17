@@ -41,6 +41,7 @@ public class Instance implements Serializable {
     /**
      * unique id of this instance.
      */
+    // 唯一标识 = 分组+集群+服务+ip+端口
     private String instanceId;
     
     /**

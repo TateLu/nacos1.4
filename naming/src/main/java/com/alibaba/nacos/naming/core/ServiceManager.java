@@ -653,7 +653,10 @@ public class ServiceManager implements RecordListener<Service> {
         String key = KeyBuilder.buildInstanceListKey(namespaceId, serviceName, ephemeral);
         
         Service service = getService(namespaceId, serviceName);
-        //加锁，更新服务的实例
+        /**
+         * 类似ConcurrentHashMap的单节点加锁
+         * 存放service的serviceMap是一个实例变量 Map<String，Map<String，Service>>，所以需要加锁同步
+         * */
         synchronized (service) {
             List<Instance> instanceList = addIpAddresses(service, ephemeral, ips);
             

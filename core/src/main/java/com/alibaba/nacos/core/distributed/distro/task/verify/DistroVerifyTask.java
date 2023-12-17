@@ -40,7 +40,16 @@ public class DistroVerifyTask implements Runnable {
         this.serverMemberManager = serverMemberManager;
         this.distroComponentHolder = distroComponentHolder;
     }
-    
+
+    //书签 注册中心 服务端 集群数据不一致 校验
+    /**
+     * 其他非责任节点通过PUT /v1/ns/distro/checksum接收VERIFY Distro数据。
+     * 非责任节点DistroConsistencyServiceImpl#onReceiveChecksums结合当前节点DataStore中的数据，比对出需要更新和需要删除的服务。
+     * 对需要删除的服务，从DataSore和ServiceManager中删除。
+     * 对需要更新的服务，需要调用GET /v1/ns/distro/datum反查查询责任节点获取服务对应注册表信息（从DataStore中查询），更新DataStore和ServiceManager中的注册信息。
+     *
+     * 参考 https://juejin.cn/post/6994258991094169614#heading-18
+     * */
     @Override
     public void run() {
         try {
