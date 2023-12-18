@@ -255,6 +255,7 @@ public class LongPollingService {
             // Do nothing but set fix polling timeout.
         } else {
             long start = System.currentTimeMillis();
+            // 用内存缓存的md5比较，是否有配置项发生变更，如果有的话立即返回
             List<String> changedGroups = MD5Util.compareMd5(req, rsp, clientMd5Map);
             if (changedGroups.size() > 0) {
                 generateResponse(req, rsp, changedGroups);

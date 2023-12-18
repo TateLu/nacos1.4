@@ -175,7 +175,9 @@ public class ConfigController {
          * */
         if (StringUtils.isBlank(betaIps)) {
             if (StringUtils.isBlank(tag)) {
+                // 更新数据库配置
                 persistService.insertOrUpdate(srcIp, srcUser, configInfo, time, configAdvanceInfo, true);
+                // 发布ConfigDataChangeEvent事件
                 ConfigChangePublisher
                         .notifyConfigChange(new ConfigDataChangeEvent(false, dataId, group, tenant, time.getTime()));
             } else {

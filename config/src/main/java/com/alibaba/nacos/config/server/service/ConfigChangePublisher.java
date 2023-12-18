@@ -34,6 +34,7 @@ public class ConfigChangePublisher {
      * @param event ConfigDataChangeEvent instance.
      */
     public static void notifyConfigChange(ConfigDataChangeEvent event) {
+        //如果使用derby数据源且使用集群模式启动将直接返回
         if (PropertyUtil.isEmbeddedStorage() && !EnvUtil.getStandaloneMode()) {
             return;
         }
