@@ -198,6 +198,8 @@ public class ConfigController {
     }
     
     /**
+     * 书签 配置中心 服务端 获取配置信息
+     *
      * Get configure board information fail.
      *
      * @throws ServletException ServletException.

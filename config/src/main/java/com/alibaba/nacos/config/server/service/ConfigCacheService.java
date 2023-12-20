@@ -232,6 +232,7 @@ public class ConfigCacheService {
         
         try {
             final String md5 = MD5Utils.md5Hex(content, Constants.ENCODE);
+            //如果使用外部数据源，数据库里本身就保存了最新数据，所以本节点保存到磁盘就可以了
             if (!PropertyUtil.isDirectRead()) {
                 String localMd5 = DiskUtil.getLocalConfigMd5(dataId, group, tenant);
                 if (md5.equals(localMd5)) {
@@ -613,7 +614,9 @@ public class ConfigCacheService {
      * failed.
      *
      * @param groupKey groupKey string value.
-     * @return 0 - No data and failed. Positive number - lock succeeded. Negative number - lock failed。
+     * @return 0 - No data and failed.
+     *          Positive number - lock succeeded.
+     *          Negative number - lock failed。
      */
     public static int tryReadLock(String groupKey) {
         CacheItem groupItem = CACHE.get(groupKey);
