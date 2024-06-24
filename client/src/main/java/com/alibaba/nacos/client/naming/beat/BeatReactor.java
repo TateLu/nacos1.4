@@ -148,7 +148,7 @@ public class BeatReactor implements Closeable {
         NAMING_LOGGER.info("{} do shutdown stop", className);
     }
 
-    //注册中心 客户端 心跳任务实现
+    //书签 注册中心 客户端 心跳任务实现
     class BeatTask implements Runnable {
         
         BeatInfo beatInfo;

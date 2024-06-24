@@ -75,7 +75,7 @@ public class ClientBeatCheckTask implements Runnable {
     }
 
 
-    //注册中心 服务端 心跳超时检测线程
+    //书签 注册中心 服务端 心跳超时检测线程
     @Override
     public void run() {
         try {

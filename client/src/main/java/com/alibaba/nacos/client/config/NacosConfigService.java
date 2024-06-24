@@ -134,7 +134,7 @@ public class NacosConfigService implements ConfigService {
     }
 
     /**
-     * 配置中心 客户端 获取配置信息
+     * 书签 配置中心 客户端 获取配置信息
      *
      * ConfigService获取配置，是不会走内存缓存的，要么是读取文件系统中的文件，要么是查询nacos-server的实时配置。
      *
