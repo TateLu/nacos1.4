@@ -206,15 +206,20 @@ public class NacosNamingService implements NamingService {
     public void registerInstance(String serviceName, Instance instance) throws NacosException {
         registerInstance(serviceName, Constants.DEFAULT_GROUP, instance);
     }
-    
+
+
+    //书签 注册中心 客户端 注册实例
     @Override
     public void registerInstance(String serviceName, String groupName, Instance instance) throws NacosException {
         NamingUtils.checkInstanceIsLegal(instance);
+        // 对于nacos来说，serviceName = groupName + @@ + serviceName
         String groupedServiceName = NamingUtils.getGroupedName(serviceName, groupName);
+        // 1. 如果是临时实例，开启心跳任务
         if (instance.isEphemeral()) {
             BeatInfo beatInfo = beatReactor.buildBeatInfo(groupedServiceName, instance);
             beatReactor.addBeatInfo(groupedServiceName, beatInfo);
         }
+        // 2. POST /nacos/v1/ns/instance
         serverProxy.registerService(groupedServiceName, groupName, instance);
     }
     
@@ -295,16 +300,19 @@ public class NacosNamingService implements NamingService {
             throws NacosException {
         return getAllInstances(serviceName, Constants.DEFAULT_GROUP, clusters, subscribe);
     }
-    
+
+    //书签 注册中心 客户端 获取服务实例信息 1
     @Override
     public List<Instance> getAllInstances(String serviceName, String groupName, List<String> clusters,
             boolean subscribe) throws NacosException {
-        
+
         ServiceInfo serviceInfo;
         if (subscribe) {
+            // subscribe=true，走三层存储查询，订阅服务
             serviceInfo = hostReactor.getServiceInfo(NamingUtils.getGroupedName(serviceName, groupName),
                     StringUtils.join(clusters, ","));
         } else {
+            // subscribe=false，直接通过NamingProxy获取服务端注册表
             serviceInfo = hostReactor
                     .getServiceInfoDirectlyFromServer(NamingUtils.getGroupedName(serviceName, groupName),
                             StringUtils.join(clusters, ","));

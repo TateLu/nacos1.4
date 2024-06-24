@@ -120,6 +120,8 @@ public class ConfigController {
      * Adds or updates non-aggregated data.
      *
      * @throws NacosException NacosException.
+     *
+     * 书签 配置中心 服务端 发布配置更新
      */
     @PostMapping
     @Secured(action = ActionTypes.WRITE, parser = ConfigResourceParser.class)
@@ -166,9 +168,16 @@ public class ConfigController {
         String betaIps = request.getHeader("betaIps");
         ConfigInfo configInfo = new ConfigInfo(dataId, group, tenant, appName, content);
         configInfo.setType(type);
+
+        /**
+         * 1 更新到数据库 （apache derby数据库（默认） 或 mysql）
+         * 2 通知集群的其他节点更新
+         * */
         if (StringUtils.isBlank(betaIps)) {
             if (StringUtils.isBlank(tag)) {
+                // 更新数据库配置
                 persistService.insertOrUpdate(srcIp, srcUser, configInfo, time, configAdvanceInfo, true);
+                // 发布ConfigDataChangeEvent事件
                 ConfigChangePublisher
                         .notifyConfigChange(new ConfigDataChangeEvent(false, dataId, group, tenant, time.getTime()));
             } else {
@@ -189,6 +198,8 @@ public class ConfigController {
     }
     
     /**
+     * 书签 配置中心 服务端 获取配置信息
+     *
      * Get configure board information fail.
      *
      * @throws ServletException ServletException.
@@ -305,6 +316,8 @@ public class ConfigController {
     
     /**
      * The client listens for configuration changes.
+     *
+     * 书签 配置中心 服务端 长轮询请求入口，监听配置更新
      */
     @PostMapping("/listener")
     @Secured(action = ActionTypes.READ, parser = ConfigResourceParser.class)

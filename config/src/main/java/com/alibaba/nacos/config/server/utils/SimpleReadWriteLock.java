@@ -67,7 +67,9 @@ public class SimpleReadWriteLock {
     }
     
     /**
-     * Zero means no lock; Negative Numbers mean write locks; Positive Numbers mean read locks, and the numeric value
+     * Zero means no lock;
+     * Negative Numbers mean write locks;
+     * Positive Numbers mean read locks, and the numeric value
      * represents the number of read locks.
      */
     private int status = 0;

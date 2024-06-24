@@ -74,12 +74,14 @@ public class ConfigServletInner {
     
     /**
      * 轮询接口.
+     * 书签 配置中心 服务端 长轮询实现
      */
     public String doPollingConfig(HttpServletRequest request, HttpServletResponse response,
             Map<String, String> clientMd5Map, int probeRequestSize) throws IOException {
         
-        // Long polling.
+        // Long polling. 长轮询实现
         if (LongPollingService.isSupportLongPolling(request)) {
+            //添加长轮询
             longPollingService.addLongPollingClient(request, response, clientMd5Map, probeRequestSize);
             return HttpServletResponse.SC_OK + "";
         }
@@ -123,6 +125,7 @@ public class ConfigServletInner {
         final String groupKey = GroupKey2.getKey(dataId, group, tenant);
         String autoTag = request.getHeader("Vipserver-Tag");
         String requestIpApp = RequestUtil.getAppName(request);
+
         int lockResult = tryConfigReadLock(groupKey);
         
         final String requestIp = RequestUtil.getRemoteIp(request);
@@ -151,9 +154,11 @@ public class ConfigServletInner {
                 if (isBeta) {
                     md5 = cacheItem.getMd54Beta();
                     lastModified = cacheItem.getLastModifiedTs4Beta();
+                    // 如果单机部署且使用derby数据源，查询实时配置
                     if (PropertyUtil.isDirectRead()) {
                         configInfoBase = persistService.findConfigInfo4Beta(dataId, group, tenant);
                     } else {
+                        // 如果集群部署 或 使用mysql，读取本地文件系统中的配置
                         file = DiskUtil.targetBetaFile(dataId, group, tenant);
                     }
                     response.setHeader("isBeta", "true");
@@ -297,6 +302,8 @@ public class ConfigServletInner {
     }
     
     /**
+     * 书签 配置中心 服务端 获取配置信息 获取读锁
+     *
      * Try to add read lock.
      *
      * @param groupKey groupKey string value.

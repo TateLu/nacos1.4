@@ -80,6 +80,7 @@ public class ConfigCacheService {
         String groupKey = GroupKey2.getKey(dataId, group, tenant);
         CacheItem ci = makeSure(groupKey);
         ci.setType(type);
+        // 获取groupKey对应写锁
         final int lockResult = tryWriteLock(groupKey);
         assert (lockResult != 0);
         
@@ -90,7 +91,7 @@ public class ConfigCacheService {
         
         try {
             final String md5 = MD5Utils.md5Hex(content, Constants.ENCODE);
-            
+            // 比较新md5与内存中配置的md5是否一致
             if (md5.equals(ConfigCacheService.getContentMd5(groupKey)) && DiskUtil.targetFile(dataId, group, tenant).exists()) {
                 DUMP_LOG.warn("[dump-ignore] ignore to save cache file. groupKey={}, md5={}, lastModifiedOld={}, "
                                 + "lastModifiedNew={}", groupKey, md5, ConfigCacheService.getLastModifiedTs(groupKey),
@@ -98,6 +99,7 @@ public class ConfigCacheService {
             } else if (!PropertyUtil.isDirectRead()) {
                 DiskUtil.saveToDisk(dataId, group, tenant, content);
             }
+            // 更新内存中配置的md5，发布LocalDataChangeEvent
             updateMd5(groupKey, md5, lastModifiedTs);
             return true;
         } catch (IOException ioe) {
@@ -230,6 +232,7 @@ public class ConfigCacheService {
         
         try {
             final String md5 = MD5Utils.md5Hex(content, Constants.ENCODE);
+            //如果使用外部数据源，数据库里本身就保存了最新数据，所以本节点保存到磁盘就可以了
             if (!PropertyUtil.isDirectRead()) {
                 String localMd5 = DiskUtil.getLocalConfigMd5(dataId, group, tenant);
                 if (md5.equals(localMd5)) {
@@ -611,7 +614,9 @@ public class ConfigCacheService {
      * failed.
      *
      * @param groupKey groupKey string value.
-     * @return 0 - No data and failed. Positive number - lock succeeded. Negative number - lock failed。
+     * @return 0 - No data and failed.
+     *          Positive number - lock succeeded.
+     *          Negative number - lock failed。
      */
     public static int tryReadLock(String groupKey) {
         CacheItem groupItem = CACHE.get(groupKey);

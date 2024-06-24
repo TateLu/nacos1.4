@@ -60,7 +60,8 @@ public class AsyncNotifyService {
     @Autowired
     public AsyncNotifyService(ServerMemberManager memberManager) {
         this.memberManager = memberManager;
-        
+
+        //书签 配置中心 服务端 接收配置更新事件 ConfigDataChangeEvent
         // Register ConfigDataChangeEvent to NotifyCenter.
         NotifyCenter.registerToPublisher(ConfigDataChangeEvent.class, NotifyCenter.ringBufferSize);
         
@@ -77,14 +78,16 @@ public class AsyncNotifyService {
                     String group = evt.group;
                     String tenant = evt.tenant;
                     String tag = evt.tag;
+                    // 获取nacos集群中所有节点
                     Collection<Member> ipList = memberManager.allMembers();
-                    
-                    // In fact, any type of queue here can be
+
+                    // 每个节点组成一个Task
                     Queue<NotifySingleTask> queue = new LinkedList<NotifySingleTask>();
                     for (Member member : ipList) {
                         queue.add(new NotifySingleTask(dataId, group, tenant, tag, dumpTs, member.getAddress(),
                                 evt.isBeta));
                     }
+                    // 提交AsyncTask到其他线程执行
                     ConfigExecutor.executeAsyncNotify(new AsyncTask(nacosAsyncRestTemplate, queue));
                 }
             }
@@ -117,8 +120,13 @@ public class AsyncNotifyService {
         public void run() {
             executeAsyncInvoke();
         }
-        
+
+        /***
+         *
+         * 这里调用了所有nacos节点的/v1/cs/communication/dataChange接口。
+         * */
         private void executeAsyncInvoke() {
+            // 循环所有nacos集群中的节点
             while (!queue.isEmpty()) {
                 NotifySingleTask task = queue.poll();
                 String targetIp = task.getTargetIP();
@@ -126,6 +134,7 @@ public class AsyncNotifyService {
                     // start the health check and there are ips that are not monitored, put them directly in the notification queue, otherwise notify
                     boolean unHealthNeedDelay = memberManager.isUnHealth(targetIp);
                     if (unHealthNeedDelay) {
+                        // 如果目标nacos实例非健康状态，提交一个延迟任务发起请求
                         // target ip is unhealthy, then put it in the notification list
                         ConfigTraceService.logNotifyEvent(task.getDataId(), task.getGroup(), task.getTenant(), null,
                                 task.getLastModified(), InetUtils.getSelfIP(), ConfigTraceService.NOTIFY_EVENT_UNHEALTH,
@@ -140,6 +149,8 @@ public class AsyncNotifyService {
                             header.addParam("isBeta", "true");
                         }
                         AuthHeaderUtil.addIdentityToHeader(header);
+
+                        // 请求/v1/cs/communication/dataChange?dataId=cfg0&group=DEFAULT_GROUP
                         restTemplate.get(task.url, header, Query.EMPTY, String.class, new AsyncNotifyCallBack(task));
                     }
                 }

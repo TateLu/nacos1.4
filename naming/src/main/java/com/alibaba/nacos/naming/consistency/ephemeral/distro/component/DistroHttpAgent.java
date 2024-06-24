@@ -41,7 +41,9 @@ public class DistroHttpAgent implements DistroTransportAgent {
     public DistroHttpAgent(ServerMemberManager memberManager) {
         this.memberManager = memberManager;
     }
-    
+
+
+    //书签 注册中心 服务端 distro协议实现
     @Override
     public boolean syncData(DistroData data, String targetServer) {
         if (!memberManager.hasMember(targetServer)) {

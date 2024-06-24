@@ -112,11 +112,21 @@ public class DistroProtocol {
      * @param distroKey distro key of sync data
      * @param action    the action of data operation
      */
+    //书签 注册中心 服务端 distro协议 发送集群节点
+    /**
+     * 具体实现
+     *  com.alibaba.nacos.naming.consistency.ephemeral.distro.component.DistroHttpAgent#syncData(DistroData, String)
+     * */
     public void sync(DistroKey distroKey, DataOperation action, long delay) {
+        //distro 协议使用延迟任务，最终一致性
+        /**
+         * 对比raft协议，使用锁来同步
+         * @see com.alibaba.nacos.naming.consistency.persistent.raft.RaftCore#signalPublish(String, com.alibaba.nacos.naming.pojo.Record)
+         * */
         for (Member each : memberManager.allMembersWithoutSelf()) {
             DistroKey distroKeyWithTarget = new DistroKey(distroKey.getResourceKey(), distroKey.getResourceType(),
                     each.getAddress());
-            //延迟任务
+
             DistroDelayTask distroDelayTask = new DistroDelayTask(distroKeyWithTarget, action, delay);
             distroTaskEngineHolder.getDelayTaskExecuteEngine().addTask(distroKeyWithTarget, distroDelayTask);
             if (Loggers.DISTRO.isDebugEnabled()) {

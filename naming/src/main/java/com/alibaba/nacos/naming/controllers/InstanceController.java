@@ -142,7 +142,8 @@ public class InstanceController {
         NamingUtils.checkServiceNameFormat(serviceName);
         
         final Instance instance = parseInstance(request);
-        
+        //distro协议 异步实现，最终一致性
+        //raft协议，同步实现，半数+1写入成功，才返回成功
         serviceManager.registerInstance(namespaceId, serviceName, instance);
         return "ok";
     }

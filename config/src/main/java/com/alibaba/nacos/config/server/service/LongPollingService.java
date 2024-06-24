@@ -58,6 +58,8 @@ import static com.alibaba.nacos.config.server.utils.LogUtil.PULL_LOG;
  * LongPollingService.
  *
  * @author Nacos
+ *
+ *  书签 配置中心 服务端 长轮询实现
  */
 @Service
 public class LongPollingService {
@@ -253,6 +255,7 @@ public class LongPollingService {
             // Do nothing but set fix polling timeout.
         } else {
             long start = System.currentTimeMillis();
+            // 用内存缓存的md5比较，是否有配置项发生变更，如果有的话立即返回
             List<String> changedGroups = MD5Util.compareMd5(req, rsp, clientMd5Map);
             if (changedGroups.size() > 0) {
                 generateResponse(req, rsp, changedGroups);
@@ -274,7 +277,11 @@ public class LongPollingService {
         
         // AsyncContext.setTimeout() is incorrect, Control by oneself
         asyncContext.setTimeout(0L);
-        //书签 配置中心 服务端 提交客户端的长轮询请求
+        /**
+         * 书签 配置中心 服务端 添加长轮询的客户端
+         * 配置文件的MD5变化，后续有更新时，会遍历通知客户端列表
+         * @see DataChangeTask
+         * */
         ConfigExecutor.executeLongPolling(
                 new ClientLongPolling(asyncContext, clientMd5Map, ip, probeRequestSize, timeout, appName, tag));
     }
@@ -291,8 +298,9 @@ public class LongPollingService {
         
         // Register LocalDataChangeEvent to NotifyCenter.
         NotifyCenter.registerToPublisher(LocalDataChangeEvent.class, NotifyCenter.ringBufferSize);
-        
+
         // Register A Subscriber to subscribe LocalDataChangeEvent.
+        //书签 配置中心 服务端 订阅配置更新事件
         NotifyCenter.registerSubscriber(new Subscriber() {
             
             @Override
@@ -323,7 +331,8 @@ public class LongPollingService {
      * ClientLongPolling subscibers.
      */
     final Queue<ClientLongPolling> allSubs;
-    
+
+    //书签 配置中心 服务端 通知客户端，配置更新事件
     class DataChangeTask implements Runnable {
         
         @Override
@@ -350,6 +359,7 @@ public class LongPollingService {
                                         RequestUtil
                                                 .getRemoteIp((HttpServletRequest) clientSub.asyncContext.getRequest()),
                                         "polling", clientSub.clientMd5Map.size(), clientSub.probeRequestSize, groupKey);
+                        //响应配置发生变化的key
                         clientSub.sendResponse(Arrays.asList(groupKey));
                     }
                 }

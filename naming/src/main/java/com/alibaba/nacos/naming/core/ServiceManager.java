@@ -40,6 +40,7 @@ import com.alibaba.nacos.naming.misc.Synchronizer;
 import com.alibaba.nacos.naming.misc.UtilsAndCommons;
 import com.alibaba.nacos.naming.pojo.InstanceOperationContext;
 import com.alibaba.nacos.naming.pojo.InstanceOperationInfo;
+import com.alibaba.nacos.naming.pojo.Record;
 import com.alibaba.nacos.naming.push.PushService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -652,13 +653,20 @@ public class ServiceManager implements RecordListener<Service> {
         String key = KeyBuilder.buildInstanceListKey(namespaceId, serviceName, ephemeral);
         
         Service service = getService(namespaceId, serviceName);
-        //加锁，更新服务的实例
+        /**
+         * 类似ConcurrentHashMap的单节点加锁
+         * 存放service的serviceMap是一个实例变量 Map<String，Map<String，Service>>，所以需要加锁同步
+         * */
         synchronized (service) {
             List<Instance> instanceList = addIpAddresses(service, ephemeral, ips);
             
             Instances instances = new Instances();
             instances.setInstanceList(instanceList);
-            
+            /**
+             * 书签 注册中心 服务端 distro/raft协议实现
+             * 通过代理服务 {@link com.alibaba.nacos.naming.consistency.DelegateConsistencyServiceImpl#put(String, Record)}}
+             *区分是distro（临时实例） 还是 raft（持久实例）
+             *  */
             consistencyService.put(key, instances);
         }
     }
@@ -876,6 +884,7 @@ public class ServiceManager implements RecordListener<Service> {
      */
     //书签 注册中心 服务端 添加service，加锁
     public void putService(Service service) {
+        //添加namespace
         if (!serviceMap.containsKey(service.getNamespaceId())) {
             //全局锁，初始化namespace
             synchronized (putServiceLock) {
@@ -884,6 +893,7 @@ public class ServiceManager implements RecordListener<Service> {
                 }
             }
         }
+        //添加service ，concurrenthashmap的putIfAbsent是线程安全的
         serviceMap.get(service.getNamespaceId()).putIfAbsent(service.getName(), service);
     }
     

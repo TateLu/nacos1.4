@@ -56,7 +56,7 @@ public class CommunicationController {
     
     /**
      * Notify the change of config information.
-     *
+     *书签 配置中心 服务端 集群节点，接收配置更新请求
      */
     @GetMapping("/dataChange")
     public Boolean notifyConfigInfo(HttpServletRequest request, @RequestParam("dataId") String dataId,
