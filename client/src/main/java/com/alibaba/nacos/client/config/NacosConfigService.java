@@ -161,7 +161,7 @@ public class NacosConfigService implements ConfigService {
             content = cr.getContent();
             return content;
         }
-        //LEVEL2 : 读取config-server实时配置，并将snapshot保存到本地文件系统
+        //LEVEL2 : 读取server实时配置 /vs/cs/configs ，并将snapshot保存到本地文件系统
         try {
             ConfigResponse response = worker.getServerConfig(dataId, group, tenant, timeoutMs);
             cr.setContent(response.getContent());
@@ -178,8 +178,8 @@ public class NacosConfigService implements ConfigService {
             LOGGER.warn("[{}] [get-config] get from server error, dataId={}, group={}, tenant={}, msg={}",
                     agent.getName(), dataId, group, tenant, ioe.toString());
         }
-        //如果ClientWorker.getServerConfig执行失败，且非403错误，会读取snapshot文件兜底。
-        // LEVEL3 : 如果读取config-server发生非403Forbidden错误，使用本地snapshot
+        //
+        // LEVEL3 : 如果ClientWorker.getServerConfig执行失败，且非403错误，会读取snapshot文件兜底。
         content = LocalConfigInfoProcessor.getSnapshot(agent.getName(), dataId, group, tenant);
         LOGGER.warn("[{}] [get-config] get snapshot ok, dataId={}, group={}, tenant={}, config={}", agent.getName(),
                 dataId, group, tenant, ContentUtils.truncateContent(content));

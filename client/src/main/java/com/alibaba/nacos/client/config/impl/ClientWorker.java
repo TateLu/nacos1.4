@@ -359,7 +359,7 @@ public class ClientWorker implements Closeable {
      * @throws IOException Exception.
      */
     List<String> checkUpdateConfigStr(String probeUpdateString, boolean isInitializingCacheList) throws Exception {
-        
+
         Map<String, String> params = new HashMap<String, String>(2);
         params.put(Constants.PROBE_MODIFY_REQUEST, probeUpdateString);
         Map<String, String> headers = new HashMap<String, String>(2);
@@ -377,7 +377,7 @@ public class ClientWorker implements Closeable {
         try {
             // In order to prevent the server from handling the delay of the client's long task,
             // increase the client's read timeout to avoid this problem.
-            
+
             long readTimeoutMs = timeout + (long) Math.round(timeout >> 1);
             HttpRestResult<String> result = agent
                     .httpPost(Constants.CONFIG_CONTROLLER_PATH + "/listener", headers, params, agent.getEncode(),
@@ -570,7 +570,7 @@ public class ClientWorker implements Closeable {
                     }
                 }
 
-                // 检查并获取有更新的配置列表
+                // 发起长轮询请求，监听更新的配置
                 List<String> changedGroupKeys = checkUpdateDataIds(cacheDatas, inInitializingCacheList);
                 if (!CollectionUtils.isEmpty(changedGroupKeys)) {
                     LOGGER.info("get changedGroupKeys:" + changedGroupKeys);
@@ -587,7 +587,7 @@ public class ClientWorker implements Closeable {
                         tenant = key[2];
                     }
                     try {
-                        // 从配置中心获取最新配置
+                        // 从配置中心获取最新配置 /v1/cs/configs
                         ConfigResponse response = getServerConfig(dataId, group, tenant, 3000L);
                         // 更新缓存中的配置数据
                         CacheData cache = cacheMap.get(GroupKey.getKeyTenant(dataId, group, tenant));

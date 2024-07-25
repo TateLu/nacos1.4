@@ -118,10 +118,11 @@ public class ConfigServletInner {
     }
     
     /**
-     * Execute to get config API.
+     * 获取config
      */
     public String doGetConfig(HttpServletRequest request, HttpServletResponse response, String dataId, String group,
             String tenant, String tag, String clientIp) throws IOException, ServletException {
+        //生成group key
         final String groupKey = GroupKey2.getKey(dataId, group, tenant);
         String autoTag = request.getHeader("Vipserver-Tag");
         String requestIpApp = RequestUtil.getAppName(request);
@@ -183,8 +184,10 @@ public class ConfigServletInner {
                             md5 = cacheItem.getMd5();
                             lastModified = cacheItem.getLastModifiedTs();
                             if (PropertyUtil.isDirectRead()) {
+                                // 如果单机部署且使用derby数据源，查询实时配置
                                 configInfoBase = persistService.findConfigInfo(dataId, group, tenant);
                             } else {
+                                // 如果集群部署 或 使用mysql，读取本地文件系统中的配置
                                 file = DiskUtil.targetFile(dataId, group, tenant);
                             }
                             if (configInfoBase == null && fileNotExist(file)) {
@@ -196,7 +199,7 @@ public class ConfigServletInner {
                                 // pullLog.info("[client-get] clientIp={}, {},
                                 // no data",
                                 // new Object[]{clientIp, groupKey});
-                                
+
                                 response.setStatus(HttpServletResponse.SC_NOT_FOUND);
                                 response.getWriter().println("config data not exist");
                                 return HttpServletResponse.SC_NOT_FOUND + "";
@@ -213,8 +216,10 @@ public class ConfigServletInner {
                             }
                         }
                         if (PropertyUtil.isDirectRead()) {
+                            // 如果单机部署且使用derby数据源，查询实时配置
                             configInfoBase = persistService.findConfigInfo4Tag(dataId, group, tenant, tag);
                         } else {
+                            // 如果集群部署 或 使用mysql，读取本地文件系统中的配置
                             file = DiskUtil.targetTagFile(dataId, group, tenant, tag);
                         }
                         if (configInfoBase == null && fileNotExist(file)) {
@@ -226,7 +231,7 @@ public class ConfigServletInner {
                             // pullLog.info("[client-get] clientIp={}, {},
                             // no data",
                             // new Object[]{clientIp, groupKey});
-                            
+
                             response.setStatus(HttpServletResponse.SC_NOT_FOUND);
                             response.getWriter().println("config data not exist");
                             return HttpServletResponse.SC_NOT_FOUND + "";
@@ -248,11 +253,13 @@ public class ConfigServletInner {
                 }
                 
                 if (PropertyUtil.isDirectRead()) {
+                    // 如果单机部署且使用derby数据源，查询实时配置
                     out = response.getWriter();
                     out.print(configInfoBase.getContent());
                     out.flush();
                     out.close();
                 } else {
+                    // 如果集群部署 或 使用mysql，读取本地文件系统中的配置
                     fis.getChannel()
                             .transferTo(0L, fis.getChannel().size(), Channels.newChannel(response.getOutputStream()));
                 }
