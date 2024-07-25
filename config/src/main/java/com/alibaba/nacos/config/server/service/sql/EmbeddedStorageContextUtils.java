@@ -83,22 +83,34 @@ public class EmbeddedStorageContextUtils {
      * In the case of the in-cluster storage mode, the logic of horizontal notification is implemented asynchronously
      * via the raft state machine, along with the information.
      *
-     * @param configInfo {@link ConfigInfo}
-     * @param srcIp      The IP of the operator
-     * @param time       Operating time
+     *
+     *
+     * 当配置信息被修改时，触发配置信息的dump操作。
+     *
+     * 集群模式下，通过raft状态机异步实现水平通知，并携带相关信息。
+     *
+     * @param configInfo 配置信息对象，包含配置的租户、数据ID、分组、内容等信息。
+     * @param srcIp 发起配置修改的源IP地址，用于追踪和审计。
+     * @param time 配置修改的时间戳，精确到毫秒，用于记录操作时间。
      */
     public static void onModifyConfigInfo(ConfigInfo configInfo, String srcIp, Timestamp time) {
+        // 检查是否为非独立部署模式，非独立部署模式下才进行配置dump操作
         if (!EnvUtil.getStandaloneMode()) {
+            // 构建配置dump事件对象，包含配置的详细信息及操作源IP和时间
             ConfigDumpEvent event = ConfigDumpEvent.builder().remove(false).namespaceId(configInfo.getTenant())
                     .dataId(configInfo.getDataId()).group(configInfo.getGroup()).isBeta(false)
                     .content(configInfo.getContent()).type(configInfo.getType()).handleIp(srcIp)
                     .lastModifiedTs(time.getTime()).build();
-            
+
+            // 准备扩展信息映射，用于存储配置dump事件的JSON字符串
             Map<String, String> extendInfo = new HashMap<>(2);
             extendInfo.put(Constants.EXTEND_INFO_CONFIG_DUMP_EVENT, JacksonUtils.toJson(event));
+
+            // 将配置dump事件的扩展信息存储到嵌入式存储上下文中
             EmbeddedStorageContextUtils.putAllExtendInfo(extendInfo);
         }
     }
+
     
     /**
      * In the case of the in-cluster storage mode, the logic of horizontal notification is implemented asynchronously
@@ -133,6 +145,7 @@ public class EmbeddedStorageContextUtils {
      */
     public static void onModifyConfigTagInfo(ConfigInfo configInfo, String tag, String srcIp, Timestamp time) {
         if (!EnvUtil.getStandaloneMode()) {
+            //raft协议 来通知其他节点更新
             ConfigDumpEvent event = ConfigDumpEvent.builder().remove(false).namespaceId(configInfo.getTenant())
                     .dataId(configInfo.getDataId()).group(configInfo.getGroup()).isBeta(false).tag(tag)
                     .content(configInfo.getContent()).type(configInfo.getType()).handleIp(srcIp)

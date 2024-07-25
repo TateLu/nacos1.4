@@ -39,85 +39,101 @@ public class DumpConfigHandler extends Subscriber<ConfigDumpEvent> {
      * @param event {@link ConfigDumpEvent}
      * @return {@code true} if the config dump task success , else {@code false}
      */
+    /**
+     * 处理配置dump事件。
+     * 根据事件的特性（beta、标签、删除标志等），将配置信息存储到缓存中，
+     * 并记录相应的操作日志。
+     *
+     * @param event 配置dump事件，包含配置的相关信息如数据ID、分组、内容等。
+     * @return 操作是否成功的布尔值。
+     */
     public static boolean configDump(ConfigDumpEvent event) {
+        // 获取事件中的配置信息
         final String dataId = event.getDataId();
         final String group = event.getGroup();
         final String namespaceId = event.getNamespaceId();
         final String content = event.getContent();
         final String type = event.getType();
         final long lastModified = event.getLastModifiedTs();
+
+        // 处理beta配置
         if (event.isBeta()) {
             boolean result = false;
+            // 如果是移除beta配置
             if (event.isRemove()) {
                 result = ConfigCacheService.removeBeta(dataId, group, namespaceId);
                 if (result) {
+                    // 记录移除成功的日志
                     ConfigTraceService.logDumpEvent(dataId, group, namespaceId, null, lastModified, event.getHandleIp(),
                             ConfigTraceService.DUMP_EVENT_REMOVE_OK, System.currentTimeMillis() - lastModified, 0);
                 }
                 return result;
             } else {
-                result = ConfigCacheService
-                        .dumpBeta(dataId, group, namespaceId, content, lastModified, event.getBetaIps());
+                // 添加或更新beta配置
+                result = ConfigCacheService.dumpBeta(dataId, group, namespaceId, content, lastModified, event.getBetaIps());
                 if (result) {
+                    // 记录添加或更新成功的日志
                     ConfigTraceService.logDumpEvent(dataId, group, namespaceId, null, lastModified, event.getHandleIp(),
-                            ConfigTraceService.DUMP_EVENT_OK, System.currentTimeMillis() - lastModified,
-                            content.length());
+                            ConfigTraceService.DUMP_EVENT_OK, System.currentTimeMillis() - lastModified, content.length());
                 }
+                return result;
             }
-            
-            return result;
         }
+
+        // 处理非beta配置，且无标签的情况
         if (StringUtils.isBlank(event.getTag())) {
+            // 特殊配置处理，如聚合白名单、客户端IP白名单、开关服务配置
             if (dataId.equals(AggrWhitelist.AGGRIDS_METADATA)) {
                 AggrWhitelist.load(content);
             }
-            
             if (dataId.equals(ClientIpWhiteList.CLIENT_IP_WHITELIST_METADATA)) {
                 ClientIpWhiteList.load(content);
             }
-            
             if (dataId.equals(SwitchService.SWITCH_META_DATAID)) {
                 SwitchService.load(content);
             }
-            
+
             boolean result;
+            // 配置添加或更新
             if (!event.isRemove()) {
                 result = ConfigCacheService.dump(dataId, group, namespaceId, content, lastModified, type);
-                
                 if (result) {
+                    // 记录添加或更新成功的日志
                     ConfigTraceService.logDumpEvent(dataId, group, namespaceId, null, lastModified, event.getHandleIp(),
-                            ConfigTraceService.DUMP_EVENT_OK, System.currentTimeMillis() - lastModified,
-                            content.length());
+                            ConfigTraceService.DUMP_EVENT_OK, System.currentTimeMillis() - lastModified, content.length());
                 }
             } else {
+                // 配置移除
                 result = ConfigCacheService.remove(dataId, group, namespaceId);
-                
                 if (result) {
+                    // 记录移除成功的日志
                     ConfigTraceService.logDumpEvent(dataId, group, namespaceId, null, lastModified, event.getHandleIp(),
                             ConfigTraceService.DUMP_EVENT_REMOVE_OK, System.currentTimeMillis() - lastModified, 0);
                 }
             }
             return result;
         } else {
-            //
+            // 处理带标签的配置
             boolean result;
+            // 配置添加或更新
             if (!event.isRemove()) {
                 result = ConfigCacheService.dumpTag(dataId, group, namespaceId, event.getTag(), content, lastModified);
                 if (result) {
+                    // 记录添加或更新成功的日志
                     ConfigTraceService.logDumpEvent(dataId, group, namespaceId, null, lastModified, event.getHandleIp(),
-                            ConfigTraceService.DUMP_EVENT_OK, System.currentTimeMillis() - lastModified,
-                            content.length());
+                            ConfigTraceService.DUMP_EVENT_OK, System.currentTimeMillis() - lastModified, content.length());
                 }
             } else {
+                // 配置移除
                 result = ConfigCacheService.removeTag(dataId, group, namespaceId, event.getTag());
                 if (result) {
+                    // 记录移除成功的日志
                     ConfigTraceService.logDumpEvent(dataId, group, namespaceId, null, lastModified, event.getHandleIp(),
                             ConfigTraceService.DUMP_EVENT_REMOVE_OK, System.currentTimeMillis() - lastModified, 0);
                 }
             }
             return result;
         }
-        
     }
     
     @Override

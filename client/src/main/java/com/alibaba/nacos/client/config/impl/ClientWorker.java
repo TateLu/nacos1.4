@@ -443,47 +443,61 @@ public class ClientWorker implements Closeable {
 
     //书签 配置中心 客户端 ClientWorker启动（启动后台线程池，获取服务端信息）
     @SuppressWarnings("PMD.ThreadPoolCreationRule")
+    /**
+     * ClientWorker的构造函数，负责初始化与配置相关的各种组件和线程池。
+     *
+     * @param agent HttpAgent实例，用于HTTP请求。
+     * @param configFilterChainManager 配置过滤器链管理器，用于处理配置的过滤和转换。
+     * @param properties 配置属性，用于初始化和配置ClientWorker的行为。
+     */
     public ClientWorker(final HttpAgent agent, final ConfigFilterChainManager configFilterChainManager,
             final Properties properties) {
         this.agent = agent;
         this.configFilterChainManager = configFilterChainManager;
-        
-        // Initialize the timeout parameter
-        
+
+        // 初始化配置
         init(properties);
-        //书签 配置中心 客户端 ClientWorker 线程池使用
+
+        // 书签 配置中心 客户端 ClientWorker 线程池使用
+
+        // 创建一个定时线程池，用于执行周期性任务。
         this.executor = Executors.newScheduledThreadPool(1, new ThreadFactory() {
             @Override
             public Thread newThread(Runnable r) {
                 Thread t = new Thread(r);
+                // 设置线程名称，方便识别和调试
                 t.setName("com.alibaba.nacos.client.Worker." + agent.getName());
-                t.setDaemon(true);
+                t.setDaemon(true); // 设置为守护线程，确保程序退出时这些线程不会阻止进程退出。
                 return t;
             }
         });
-        
+
+        // 创建一个定长线程池，用于处理长轮询任务。
         this.executorService = Executors
                 .newScheduledThreadPool(Runtime.getRuntime().availableProcessors(), new ThreadFactory() {
                     @Override
                     public Thread newThread(Runnable r) {
                         Thread t = new Thread(r);
+                        // 设置线程名称，方便识别和调试
                         t.setName("com.alibaba.nacos.client.Worker.longPolling." + agent.getName());
-                        t.setDaemon(true);
+                        t.setDaemon(true); // 设置为守护线程
                         return t;
                     }
                 });
-        
+
+        // 定时任务，周期性检查配置信息。
         this.executor.scheduleWithFixedDelay(new Runnable() {
             @Override
             public void run() {
                 try {
-                    checkConfigInfo();
+                    checkConfigInfo(); // 检查并处理配置信息的更新。
                 } catch (Throwable e) {
                     LOGGER.error("[" + agent.getName() + "] [sub-check] rotate check error", e);
                 }
             }
         }, 1L, 10L, TimeUnit.MILLISECONDS);
     }
+
     
     private void init(Properties properties) {
         
@@ -524,33 +538,47 @@ public class ClientWorker implements Closeable {
         }
         
         @Override
+        /**
+         * 实现Runnable接口的run方法，用于定期从配置中心获取更新的配置。
+         * 此方法主要负责以下步骤：
+         * 1. 根据当前任务ID，从缓存中筛选出相关的配置数据。
+         * 2. 检查并更新这些配置数据的本地配置信息。
+         * 3. 对于有更新的配置数据，从配置中心获取最新的配置内容并更新缓存。
+         * 4. 触发配置变更监听器。
+         * 5. 如果在执行过程中发生异常，将重新调度任务执行。
+         */
         public void run() {
-            
+            // 初始化用于存储匹配任务ID的配置数据的列表和正在初始化的配置列表
             List<CacheData> cacheDatas = new ArrayList<CacheData>();
             List<String> inInitializingCacheList = new ArrayList<String>();
+
             try {
-                // check failover config
+                // 遍历缓存中的所有配置数据，筛选出与当前任务ID匹配的配置数据
                 for (CacheData cacheData : cacheMap.values()) {
                     if (cacheData.getTaskId() == taskId) {
                         cacheDatas.add(cacheData);
                         try {
+                            // 检查并更新配置的本地信息
                             checkLocalConfig(cacheData);
                             if (cacheData.isUseLocalConfigInfo()) {
                                 cacheData.checkListenerMd5();
                             }
                         } catch (Exception e) {
+                            // 记录获取本地配置信息时的错误
                             LOGGER.error("get local config info error", e);
                         }
                     }
                 }
-                
-                // check server config
+
+                // 检查并获取有更新的配置列表
                 List<String> changedGroupKeys = checkUpdateDataIds(cacheDatas, inInitializingCacheList);
                 if (!CollectionUtils.isEmpty(changedGroupKeys)) {
                     LOGGER.info("get changedGroupKeys:" + changedGroupKeys);
                 }
-                
+
+                // 遍历有更新的配置数据，从配置中心获取最新配置并更新缓存
                 for (String groupKey : changedGroupKeys) {
+                    // 解析组键获取配置的ID、组和租户信息
                     String[] key = GroupKey.parseKey(groupKey);
                     String dataId = key[0];
                     String group = key[1];
@@ -559,25 +587,29 @@ public class ClientWorker implements Closeable {
                         tenant = key[2];
                     }
                     try {
+                        // 从配置中心获取最新配置
                         ConfigResponse response = getServerConfig(dataId, group, tenant, 3000L);
+                        // 更新缓存中的配置数据
                         CacheData cache = cacheMap.get(GroupKey.getKeyTenant(dataId, group, tenant));
-                        // FIXME temporary fix https://github.com/alibaba/nacos/issues/7039
                         cache.setEncryptedDataKey(response.getEncryptedDataKey());
                         cache.setContent(response.getContent());
                         if (null != response.getConfigType()) {
                             cache.setType(response.getConfigType());
                         }
+                        // 记录配置更新日志
                         LOGGER.info("[{}] [data-received] dataId={}, group={}, tenant={}, md5={}, content={}, type={}",
                                 agent.getName(), dataId, group, tenant, cache.getMd5(),
                                 ContentUtils.truncateContent(response.getContent()), response.getConfigType());
                     } catch (NacosException ioe) {
+                        // 记录获取配置时的异常
                         String message = String
                                 .format("[%s] [get-update] get changed config exception. dataId=%s, group=%s, tenant=%s",
                                         agent.getName(), dataId, group, tenant);
                         LOGGER.error(message, ioe);
                     }
                 }
-                //书签 配置中心 客户端 MD5校验配置是否发生变更，并触发监听器。
+
+                // 检查并触发配置变更监听器
                 for (CacheData cacheData : cacheDatas) {
                     if (!cacheData.isInitializing() || inInitializingCacheList
                             .contains(GroupKey.getKeyTenant(cacheData.dataId, cacheData.group, cacheData.tenant))) {
@@ -585,11 +617,13 @@ public class ClientWorker implements Closeable {
                         cacheData.setInitializing(false);
                     }
                 }
+                // 清空正在初始化的配置列表，准备下一轮循环
                 inInitializingCacheList.clear();
-                //重新提交回线程池
+                // 重新提交当前任务到执行器服务，实现周期性执行
                 executorService.execute(this);
-                
+
             } catch (Throwable e) {
+                // 记录长轮询过程中的错误，并根据惩罚时间重新调度任务
                 //报错，则延迟一定时间再提交
                 // If the rotation training task is abnormal, the next execution time of the task will be punished
                 LOGGER.error("longPolling error : ", e);
@@ -597,6 +631,7 @@ public class ClientWorker implements Closeable {
             }
         }
     }
+
     
     public boolean isHealthServer() {
         return isHealthServer;

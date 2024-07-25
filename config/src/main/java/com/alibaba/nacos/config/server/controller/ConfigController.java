@@ -121,7 +121,7 @@ public class ConfigController {
      *
      * @throws NacosException NacosException.
      *
-     * 书签 配置中心 服务端 发布配置更新
+     * 书签 配置中心 服务端 配置更新接口
      */
     @PostMapping
     @Secured(action = ActionTypes.WRITE, parser = ConfigResourceParser.class)
@@ -175,9 +175,9 @@ public class ConfigController {
          * */
         if (StringUtils.isBlank(betaIps)) {
             if (StringUtils.isBlank(tag)) {
-                // 更新数据库配置
+                // 更新数据库配置 （apache derby数据库（默认） 或 mysql）
                 persistService.insertOrUpdate(srcIp, srcUser, configInfo, time, configAdvanceInfo, true);
-                // 发布ConfigDataChangeEvent事件
+                // 发布更新事件
                 ConfigChangePublisher
                         .notifyConfigChange(new ConfigDataChangeEvent(false, dataId, group, tenant, time.getTime()));
             } else {

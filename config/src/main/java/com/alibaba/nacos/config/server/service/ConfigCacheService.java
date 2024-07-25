@@ -64,46 +64,57 @@ public class ConfigCacheService {
         return CACHE.containsKey(groupKey);
     }
     
+
     /**
-     * Save config file and update md5 value in cache.
+     * 保存配置到磁盘，并更新内存中的缓存。
      *
-     * @param dataId         dataId string value.
-     * @param group          group string value.
-     * @param tenant         tenant string value.
-     * @param content        content string value.
-     * @param lastModifiedTs lastModifiedTs.
-     * @param type           file type.
-     * @return dumpChange success or not.
+     * @param dataId 配置的ID
+     * @param group 配置的分组
+     * @param tenant 配置的租户
+     * @param content 配置的内容
+     * @param lastModifiedTs 配置的最后修改时间戳
+     * @param type 配置的类型
+     * @return 如果保存成功，返回true；否则返回false。
      */
     public static boolean dump(String dataId, String group, String tenant, String content, long lastModifiedTs,
             String type) {
+        // 根据数据ID、分组和租户生成组键
         String groupKey = GroupKey2.getKey(dataId, group, tenant);
+        // 确保缓存项存在
         CacheItem ci = makeSure(groupKey);
         ci.setType(type);
+        // 尝试获取写锁
         // 获取groupKey对应写锁
         final int lockResult = tryWriteLock(groupKey);
         assert (lockResult != 0);
-        
+
+        // 如果获取写锁失败，返回false
         if (lockResult < 0) {
             DUMP_LOG.warn("[dump-error] write lock failed. {}", groupKey);
             return false;
         }
-        
+
         try {
+
+            // 计算配置内容的MD5
             final String md5 = MD5Utils.md5Hex(content, Constants.ENCODE);
+            // 如果当前MD5与缓存中的MD5相同，且目标文件已存在，则忽略保存
             // 比较新md5与内存中配置的md5是否一致
             if (md5.equals(ConfigCacheService.getContentMd5(groupKey)) && DiskUtil.targetFile(dataId, group, tenant).exists()) {
                 DUMP_LOG.warn("[dump-ignore] ignore to save cache file. groupKey={}, md5={}, lastModifiedOld={}, "
                                 + "lastModifiedNew={}", groupKey, md5, ConfigCacheService.getLastModifiedTs(groupKey),
                         lastModifiedTs);
             } else if (!PropertyUtil.isDirectRead()) {
+                // 如果不直接读取文件，则将配置保存到磁盘
                 DiskUtil.saveToDisk(dataId, group, tenant, content);
             }
             // 更新内存中配置的md5，发布LocalDataChangeEvent
             updateMd5(groupKey, md5, lastModifiedTs);
+
             return true;
         } catch (IOException ioe) {
             DUMP_LOG.error("[dump-exception] save disk error. " + groupKey + ", " + ioe.toString(), ioe);
+            // 处理磁盘空间不足的情况
             if (ioe.getMessage() != null) {
                 String errMsg = ioe.getMessage();
                 if (NO_SPACE_CN.equals(errMsg) || NO_SPACE_EN.equals(errMsg) || errMsg.contains(DISK_QUATA_CN) || errMsg
@@ -115,51 +126,67 @@ public class ConfigCacheService {
             }
             return false;
         } finally {
+            // 释放写锁
             releaseWriteLock(groupKey);
         }
     }
     
+
+    // 保存配置到磁盘，并更新内存中的缓存。
     /**
-     * Save config file and update md5 value in cache.
+     * 保存配置的Beta版本到磁盘，并更新MD5和最后修改时间。
+     * 此方法主要用于处理配置的Beta版本更新，确保配置的完整性和一致性。
      *
-     * @param dataId         dataId string value.
-     * @param group          group string value.
-     * @param tenant         tenant string value.
-     * @param content        content string value.
-     * @param lastModifiedTs lastModifiedTs.
-     * @param betaIps        betaIps string value.
-     * @return dumpChange success or not.
+     * @param dataId 配置的数据ID
+     * @param group 配置的分组
+     * @param tenant 配置的租户
+     * @param content 配置的内容
+     * @param lastModifiedTs 上次修改的时间戳
+     * @param betaIps Beta IP列表，以逗号分隔
+     * @return 如果成功保存并更新Beta版本，则返回true；否则返回false。
      */
     public static boolean dumpBeta(String dataId, String group, String tenant, String content, long lastModifiedTs,
             String betaIps) {
+        // 根据数据ID、分组和租户生成组键
         final String groupKey = GroupKey2.getKey(dataId, group, tenant);
-        
+        // 确保组键的有效性
+        //检查
         makeSure(groupKey);
+        // 尝试获取写锁
         final int lockResult = tryWriteLock(groupKey);
+        // 断言写锁获取成功
         assert (lockResult != 0);
-        
+
+        // 如果获取写锁失败，则返回false
         if (lockResult < 0) {
             DUMP_LOG.warn("[dump-beta-error] write lock failed. {}", groupKey);
             return false;
         }
-        
+
         try {
+            // 计算配置内容的MD5
             final String md5 = MD5Utils.md5Hex(content, Constants.ENCODE);
+            // 如果MD5与缓存中的Beta版本MD5相同，且目标Beta配置文件存在，则忽略保存
             if (md5.equals(ConfigCacheService.getContentBetaMd5(groupKey)) && DiskUtil.targetBetaFile(dataId, group, tenant).exists()) {
                 DUMP_LOG.warn("[dump-beta-ignore] ignore to save cache file. groupKey={}, md5={}, lastModifiedOld={}, "
                                 + "lastModifiedNew={}", groupKey, md5, ConfigCacheService.getLastModifiedTs(groupKey),
                         lastModifiedTs);
             } else if (!PropertyUtil.isDirectRead()) {
+                // 如果不直接读取配置，则将Beta配置保存到磁盘
                 DiskUtil.saveBetaToDisk(dataId, group, tenant, content);
             }
+            // 分割Beta IP列表
             String[] betaIpsArr = betaIps.split(",");
-            
+
+            //书签 配置中心 服务端 发布配置更新事件
             updateBetaMd5(groupKey, md5, Arrays.asList(betaIpsArr), lastModifiedTs);
             return true;
         } catch (IOException ioe) {
+            // 记录保存磁盘时的异常
             DUMP_LOG.error("[dump-beta-exception] save disk error. " + groupKey + ", " + ioe.toString(), ioe);
             return false;
         } finally {
+            // 释放写锁
             releaseWriteLock(groupKey);
         }
     }
@@ -465,6 +492,7 @@ public class ConfigCacheService {
      * @param md5            md5 string value.
      * @param lastModifiedTs lastModifiedTs long value.
      */
+    //书签 配置中心 服务端 MD5更新事件
     public static void updateMd5(String groupKey, String md5, long lastModifiedTs) {
         CacheItem cache = makeSure(groupKey);
         if (cache.md5 == null || !cache.md5.equals(md5)) {

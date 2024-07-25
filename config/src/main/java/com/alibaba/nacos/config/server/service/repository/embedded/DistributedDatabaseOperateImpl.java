@@ -413,24 +413,36 @@ public class DistributedDatabaseOperateImpl extends RequestProcessor4CP implemen
     }
     
     @Override
+    /**
+     * 更新操作，用于处理一系列修改请求。
+     *
+     * @param sqlContext 修改请求的列表，每个请求包含具体的修改信息。
+     * @param consumer 异步处理结果的消费者，用于接收操作成功与否和可能的异常。
+     * @return 如果是同步处理模式，返回操作是否成功的布尔值；如果是异步处理，始终返回true。
+     * @throws NacosRuntimeException 如果操作过程中发生超时或其它异常。
+     */
     public Boolean update(List<ModifyRequest> sqlContext, BiConsumer<Boolean, Throwable> consumer) {
         try {
-            
+            // 在调试模式下打印修改请求的信息
+            LoggerUtils.printIfDebugEnabled(LogUtil.DEFAULT_LOG, "modifyRequests info : {}", sqlContext);
+
             // Since the SQL parameter is Object[], in order to ensure that the types of
             // array elements are not lost, the serialization here is done using the java-specific
             // serialization framework, rather than continuing with the protobuff
-            
-            LoggerUtils.printIfDebugEnabled(LogUtil.DEFAULT_LOG, "modifyRequests info : {}", sqlContext);
-            
+
+            // 构建请求的唯一键，基于当前时间、组信息、成员地址和请求内容的MD5值
             // {timestamp}-{group}-{ip:port}-{signature}
-            
             final String key =
                     System.currentTimeMillis() + "-" + group() + "-" + memberManager.getSelf().getAddress() + "-"
                             + MD5Utils.md5Hex(sqlContext.toString(), Constants.ENCODE);
+
+            // 构建写请求对象，包含组信息、唯一键、序列化后的修改请求、扩展信息和请求类型
             WriteRequest request = WriteRequest.newBuilder().setGroup(group()).setKey(key)
                     .setData(ByteString.copyFrom(serializer.serialize(sqlContext)))
                     .putAllExtendInfo(EmbeddedStorageContextUtils.getCurrentExtendInfo())
                     .setType(sqlContext.getClass().getCanonicalName()).build();
+
+            // 如果没有提供消费函数，同步处理写请求并返回结果
             if (Objects.isNull(consumer)) {
                 Response response = this.protocol.write(request);
                 if (response.getSuccess()) {
@@ -439,6 +451,7 @@ public class DistributedDatabaseOperateImpl extends RequestProcessor4CP implemen
                 LogUtil.DEFAULT_LOG.error("execute sql modify operation failed : {}", response.getErrMsg());
                 return false;
             } else {
+                // 如果提供了消费函数，异步处理写请求，并在完成时调用消费函数处理结果
                 this.protocol.writeAsync(request).whenComplete((BiConsumer<Response, Throwable>) (response, ex) -> {
                     String errMsg = Objects.isNull(ex) ? response.getErrMsg() : ExceptionUtil.getCause(ex).getMessage();
                     consumer.accept(response.getSuccess(),
@@ -447,13 +460,16 @@ public class DistributedDatabaseOperateImpl extends RequestProcessor4CP implemen
             }
             return true;
         } catch (TimeoutException e) {
+            // 处理超时异常，记录日志并抛出运行时异常
             LogUtil.FATAL_LOG.error("An timeout exception occurred during the update operation");
             throw new NacosRuntimeException(NacosException.SERVER_ERROR, e.toString());
         } catch (Throwable e) {
+            // 处理其他异常，记录日志并抛出运行时异常
             LogUtil.FATAL_LOG.error("An exception occurred during the update operation : {}", e);
             throw new NacosRuntimeException(NacosException.SERVER_ERROR, e.toString());
         }
     }
+
     
     @Override
     public List<SnapshotOperation> loadSnapshotOperate() {

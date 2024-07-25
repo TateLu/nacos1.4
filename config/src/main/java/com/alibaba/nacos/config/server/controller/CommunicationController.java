@@ -56,7 +56,7 @@ public class CommunicationController {
     
     /**
      * Notify the change of config information.
-     *书签 配置中心 服务端 集群节点，接收配置更新请求
+     *书签 配置中心 服务端 接收其他节点配置更新请求
      */
     @GetMapping("/dataChange")
     public Boolean notifyConfigInfo(HttpServletRequest request, @RequestParam("dataId") String dataId,
@@ -70,6 +70,10 @@ public class CommunicationController {
         String handleIp = request.getHeader(NotifyService.NOTIFY_HEADER_OP_HANDLE_IP);
         String isBetaStr = request.getHeader("isBeta");
         if (StringUtils.isNotBlank(isBetaStr) && trueStr.equals(isBetaStr)) {
+            /**
+             * 1 更新服务器本地文件、缓存
+             * 2 通知监听的客户端更新
+             * */
             dumpService.dump(dataId, group, tenant, lastModifiedTs, handleIp, true);
         } else {
             dumpService.dump(dataId, group, tenant, tag, lastModifiedTs, handleIp);

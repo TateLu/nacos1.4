@@ -332,7 +332,7 @@ public class LongPollingService {
      */
     final Queue<ClientLongPolling> allSubs;
 
-    //书签 配置中心 服务端 通知客户端，配置更新事件
+    //书签 配置中心 服务端 通知客户端更新，长轮询响应
     class DataChangeTask implements Runnable {
         
         @Override

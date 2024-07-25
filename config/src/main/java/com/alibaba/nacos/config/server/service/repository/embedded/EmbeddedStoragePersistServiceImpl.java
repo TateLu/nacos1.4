@@ -350,7 +350,7 @@ public class EmbeddedStoragePersistServiceImpl implements PersistService {
             final String sql = "UPDATE config_info_tag SET content=?, md5 = ?, src_ip=?,src_user=?,gmt_modified=?,app_name=? WHERE data_id=? AND group_id=? AND tenant_id=? AND tag_id=?";
             final Object[] args = new Object[] {configInfo.getContent(), md5, srcIp, srcUser, time, appNameTmp,
                     configInfo.getDataId(), configInfo.getGroup(), tenantTmp, tagTmp};
-            
+            //记录更新配置信息事件
             EmbeddedStorageContextUtils.onModifyConfigTagInfo(configInfo, tagTmp, srcIp, time);
             EmbeddedStorageContextUtils.addSqlContext(sql, args);
             

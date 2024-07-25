@@ -61,13 +61,14 @@ public class AsyncNotifyService {
     public AsyncNotifyService(ServerMemberManager memberManager) {
         this.memberManager = memberManager;
 
-        //书签 配置中心 服务端 接收配置更新事件 ConfigDataChangeEvent
+
         // Register ConfigDataChangeEvent to NotifyCenter.
         NotifyCenter.registerToPublisher(ConfigDataChangeEvent.class, NotifyCenter.ringBufferSize);
         
-        // Register A Subscriber to subscribe ConfigDataChangeEvent.
+        //服务端 订阅配置更新事件 ConfigDataChangeEvent
         NotifyCenter.registerSubscriber(new Subscriber() {
-            
+
+            //书签 配置中心 服务端 通知集群节点更新
             @Override
             public void onEvent(Event event) {
                 // Generate ConfigDataChangeEvent concurrently
@@ -121,6 +122,13 @@ public class AsyncNotifyService {
             executeAsyncInvoke();
         }
 
+
+        /**
+         * 异步执行通知调用。
+         * 该方法从队列中获取待处理的任务，并根据目标IP是否存在于成员管理器中以及目标IP的健康状态来决定如何处理任务。
+         * 如果目标IP不存在或者目标IP处于不健康状态，则将任务标记为延迟处理。
+         * 如果目标IP存在且健康，则立即发送通知请求。
+         */
         /***
          *
          * 这里调用了所有nacos节点的/v1/cs/communication/dataChange接口。
@@ -128,20 +136,22 @@ public class AsyncNotifyService {
         private void executeAsyncInvoke() {
             // 循环所有nacos集群中的节点
             while (!queue.isEmpty()) {
+                // 从队列中取出一个任务进行处理
                 NotifySingleTask task = queue.poll();
                 String targetIp = task.getTargetIP();
+                // 检查目标IP是否在成员管理器中
                 if (memberManager.hasMember(targetIp)) {
-                    // start the health check and there are ips that are not monitored, put them directly in the notification queue, otherwise notify
+                    // 检查目标IP是否处于不健康状态
                     boolean unHealthNeedDelay = memberManager.isUnHealth(targetIp);
                     if (unHealthNeedDelay) {
-                        // 如果目标nacos实例非健康状态，提交一个延迟任务发起请求
-                        // target ip is unhealthy, then put it in the notification list
+                        // 如果目标IP不健康，则记录事件并延迟处理任务
                         ConfigTraceService.logNotifyEvent(task.getDataId(), task.getGroup(), task.getTenant(), null,
                                 task.getLastModified(), InetUtils.getSelfIP(), ConfigTraceService.NOTIFY_EVENT_UNHEALTH,
                                 0, task.target);
-                        // get delay time and set fail count to the task
+                        // 调用方法将任务标记为延迟执行
                         asyncTaskExecute(task);
                     } else {
+                        // 如果目标IP健康，则准备请求头并发送通知请求
                         Header header = Header.newInstance();
                         header.addParam(NotifyService.NOTIFY_HEADER_LAST_MODIFIED, String.valueOf(task.getLastModified()));
                         header.addParam(NotifyService.NOTIFY_HEADER_OP_HANDLE_IP, InetUtils.getSelfIP());
@@ -150,12 +160,14 @@ public class AsyncNotifyService {
                         }
                         AuthHeaderUtil.addIdentityToHeader(header);
 
+                        // 使用RestTemplate发送GET请求，通知数据变更
                         // 请求/v1/cs/communication/dataChange?dataId=cfg0&group=DEFAULT_GROUP
                         restTemplate.get(task.url, header, Query.EMPTY, String.class, new AsyncNotifyCallBack(task));
                     }
                 }
             }
         }
+
     }
     
     private void asyncTaskExecute(NotifySingleTask task) {
