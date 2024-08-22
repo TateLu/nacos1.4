@@ -503,6 +503,7 @@ public class ServiceManager implements RecordListener<Service> {
      * @param instance    instance to register
      * @throws Exception any error occurred in the process
      */
+    //书签 注册中心 服务端 注册instance
     public void registerInstance(String namespaceId, String serviceName, Instance instance) throws NacosException {
         //instance对应的service不存在，则新建一个
         createEmptyService(namespaceId, serviceName, instance.isEphemeral());

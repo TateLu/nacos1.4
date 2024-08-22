@@ -230,72 +230,77 @@ public class Cluster extends com.alibaba.nacos.api.naming.pojo.Cluster implement
     }
     
     /**
-     * Update instance list.
+     * 书签 注册中心 服务端 更新instance
      *
-     * @param ips       instance list
-     * @param ephemeral whether these instances are ephemeral
+     * 根据提供的IP列表和是否为临时实例的标志，更新实例列表。
+     *
+     * 如果实例是临时实例，则更新临时实例列表；如果是持久实例，则更新持久实例列表。
+     * 此方法负责识别新实例、更新现有实例的健康状态和权重，以及标记已删除的实例。
+     *
+     * @param ips            要更新的实例列表。
+     * @param ephemeral      标志位，指示实例是临时实例还是持久实例。
      */
     public void updateIps(List<Instance> ips, boolean ephemeral) {
-        
+        // 根据ephemeral标志决定更新临时实例列表还是持久实例列表
         Set<Instance> toUpdateInstances = ephemeral ? ephemeralInstances : persistentInstances;
-        
+
+        // 创建一个映射，用于存储旧的IP实例，以便后续比较和更新
         HashMap<String, Instance> oldIpMap = new HashMap<>(toUpdateInstances.size());
-        
         for (Instance ip : toUpdateInstances) {
             oldIpMap.put(ip.getDatumKey(), ip);
         }
-        
+
+        // 识别出需要更新的实例
         List<Instance> updatedIPs = updatedIps(ips, oldIpMap.values());
         if (updatedIPs.size() > 0) {
             for (Instance ip : updatedIPs) {
                 Instance oldIP = oldIpMap.get(ip.getDatumKey());
-                
-                // do not update the ip validation status of updated ips
-                // because the checker has the most precise result
-                // Only when ip is not marked, don't we update the health status of IP:
+
+                // 如果实例没有被标记为删除，则继承旧实例的健康状态
                 if (!ip.isMarked()) {
                     ip.setHealthy(oldIP.isHealthy());
                 }
-                
+
+                // 记录健康状态的变化
                 if (ip.isHealthy() != oldIP.isHealthy()) {
-                    // ip validation status updated
                     Loggers.EVT_LOG.info("{} {SYNC} IP-{} {}:{}@{}", getService().getName(),
                             (ip.isHealthy() ? "ENABLED" : "DISABLED"), ip.getIp(), ip.getPort(), getName());
                 }
-                
+
+                // 记录权重的变化
                 if (ip.getWeight() != oldIP.getWeight()) {
-                    // ip validation status updated
                     Loggers.EVT_LOG.info("{} {SYNC} {IP-UPDATED} {}->{}", getService().getName(), oldIP.toString(),
                             ip.toString());
                 }
             }
         }
-        
+
+        // 识别出新的实例
         List<Instance> newIPs = subtract(ips, oldIpMap.values());
         if (newIPs.size() > 0) {
-            Loggers.EVT_LOG
-                    .info("{} {SYNC} {IP-NEW} cluster: {}, new ips size: {}, content: {}", getService().getName(),
-                            getName(), newIPs.size(), newIPs.toString());
-            
+            Loggers.EVT_LOG.info("{} {SYNC} {IP-NEW} cluster: {}, new ips size: {}, content: {}", getService().getName(),
+                    getName(), newIPs.size(), newIPs.toString());
+
+            // 重置新实例的健康检查状态
             for (Instance ip : newIPs) {
                 HealthCheckStatus.reset(ip);
             }
         }
-        
+
+        // 识别出已删除的实例
         List<Instance> deadIPs = subtract(oldIpMap.values(), ips);
-        
         if (deadIPs.size() > 0) {
-            Loggers.EVT_LOG
-                    .info("{} {SYNC} {IP-DEAD} cluster: {}, dead ips size: {}, content: {}", getService().getName(),
-                            getName(), deadIPs.size(), deadIPs.toString());
-            
+            Loggers.EVT_LOG.info("{} {SYNC} {IP-DEAD} cluster: {}, dead ips size: {}, content: {}", getService().getName(),
+                    getName(), deadIPs.size(), deadIPs.toString());
+
+            // 移除已删除实例的健康检查状态
             for (Instance ip : deadIPs) {
                 HealthCheckStatus.remv(ip);
             }
         }
-        
+
+        // 更新实例列表
         toUpdateInstances = new HashSet<>(ips);
-        
         if (ephemeral) {
             ephemeralInstances = toUpdateInstances;
         } else {
@@ -350,21 +355,33 @@ public class Cluster extends com.alibaba.nacos.api.naming.pojo.Cluster implement
         return new ArrayList<>(updatedInstancesMap.values());
     }
     
+    /**
+     * 从一个实例集合中减去另一个实例集合，得到不包含在第二个集合中的实例列表。
+     * 这个方法主要用于处理实例列表的差异比较，以找出在第一个集合中但不在第二个集合中的实例。
+     *
+     * @param oldIp 第一个实例集合，用于比较的基准集合。
+     * @param ips 第二个实例集合，用于对比，找出不在其中的实例。
+     * @return 返回一个实例列表，包含在第一个集合中但不在第二个集合中的实例。
+     */
     private List<Instance> subtract(Collection<Instance> oldIp, Collection<Instance> ips) {
+        // 使用哈希表来快速查找ips中的实例，以提高查找效率。
         Map<String, Instance> ipsMap = new HashMap<>(ips.size());
         for (Instance instance : ips) {
+            // 将实例的IP和端口组合作为键，以确保唯一性，避免重复。
             ipsMap.put(instance.getIp() + ":" + instance.getPort(), instance);
         }
-        
+
+        // 用于存储结果的实例列表。
         List<Instance> instanceResult = new ArrayList<>();
-        
         for (Instance instance : oldIp) {
+            // 检查当前实例是否不在ipsMap中，如果是，则添加到结果列表中。
             if (!ipsMap.containsKey(instance.getIp() + ":" + instance.getPort())) {
                 instanceResult.add(instance);
             }
         }
         return instanceResult;
     }
+
     
     @Override
     public int hashCode() {
